@@ -15,7 +15,7 @@
 import('lib.pkp.classes.plugins.GenericPlugin');
 import('plugins.generic.dataverse.classes.DataversePackager');
 
-require('lib/pkp/plugins/generic/dataverse/swordappv2/swordappclient.php');
+require('lib/pkp/lib/swordappv2/swordappclient.php');
 
 define('DATAVERSE_PLUGIN_HTTP_STATUS_OK', 200);
 define('DATAVERSE_PLUGIN_HTTP_STATUS_CREATED', 201);

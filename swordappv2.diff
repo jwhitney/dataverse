@@ -1,0 +1,211 @@
+diff --git a/packager_atom_multipart.php b/packager_atom_multipart.php
+index 8f6f6db..3f34d7a 100644
+--- a/packager_atom_multipart.php
++++ b/packager_atom_multipart.php
+@@ -25,6 +25,7 @@ class PackagerAtomMultipart {
+     // The dcterms metadata
+     private $sac_entry_dctermsFields;
+     private $sac_entry_dctermsValues;
++    private $sac_entry_dctermsAttributes;
+ 
+     // The entry title
+     private $sac_entry_title;
+@@ -55,6 +56,7 @@ class PackagerAtomMultipart {
+ 
+         $this->sac_entry_dctermsFields = array();
+         $this->sac_entry_dctermsValues = array();
++        $this->sac_entry_dctermsAttributes = array();        
+ 
+         $this->sac_entry_authors = array();
+     }
+@@ -79,9 +81,14 @@ class PackagerAtomMultipart {
+         $this->sac_entry_summary = $this->clean($sac_theSummary);
+     }
+ 
+-    function addMetadata($sac_theElement, $sac_theValue) {
++    function addMetadata($sac_theElement, $sac_theValue, $sac_theAttributes = array()) {
+         array_push($this->sac_entry_dctermsFields, $this->clean($sac_theElement));
+         array_push($this->sac_entry_dctermsValues, $this->clean($sac_theValue));
++        $sac_cleanAttributes = array();
++        foreach ($sac_theAttributes as $attrName => $attrValue) {
++          $sac_cleanAttributes[$this->clean($attrName)] = $this->clean($attrValue);
++        }
++        array_push($this->sac_entry_dctermsAttributes, $sac_cleanAttributes);        
+     }
+ 
+     function addFile($sac_thefile) {
+@@ -111,9 +118,14 @@ class PackagerAtomMultipart {
+ 
+         // Write the dcterms metadata
+         for ($i = 0; $i < count($this->sac_entry_dctermsFields); $i++) {
+-            fwrite($fh, "\t<dcterms:" . $this->sac_entry_dctermsFields[$i] . ">" .
+-                        $this->sac_entry_dctermsValues[$i] .
+-                        "</dcterms:" . $this->sac_entry_dctermsFields[$i] . ">\n");
++            $dcElement = "\t<dcterms:" . $this->sac_entry_dctermsFields[$i];
++            if (!empty($this->sac_entry_dctermsAttributes[$i])) {
++              foreach ($this->sac_entry_dctermsAttributes[$i] as $attrName => $attrValue) {
++                $dcElement .= " $attrName=\"$attrValue\"";
++              }
++            }
++            $dcElement .= ">" . $this->sac_entry_dctermsValues[$i] . "</dcterms:" . $this->sac_entry_dctermsFields[$i] . ">\n";
++            fwrite($fh, $dcElement);
+         }
+ 
+         // Close the file
+diff --git a/packager_atom_multipart_eprints.php b/packager_atom_multipart_eprints.php
+index f06c4be..1e1e346 100644
+--- a/packager_atom_multipart_eprints.php
++++ b/packager_atom_multipart_eprints.php
+@@ -25,6 +25,7 @@ class PackagerAtomMultipart {
+     // The dcterms metadata
+     private $sac_entry_dctermsFields;
+     private $sac_entry_dctermsValues;
++    private $sac_entry_dctermsAttributes;
+ 
+     // The entry title
+     private $sac_entry_title;
+@@ -55,6 +56,7 @@ class PackagerAtomMultipart {
+ 
+         $this->sac_entry_dctermsFields = array();
+         $this->sac_entry_dctermsValues = array();
++        $this->sac_entry_dctermsAttributes = array();
+ 
+         $this->sac_entry_authors = array();
+     }
+@@ -79,9 +81,14 @@ class PackagerAtomMultipart {
+         $this->sac_entry_summary = $this->clean($sac_theSummary);
+     }
+ 
+-    function addMetadata($sac_theElement, $sac_theValue) {
++    function addMetadata($sac_theElement, $sac_theValue, $sac_theAttributes = array()) {
+         array_push($this->sac_entry_dctermsFields, $this->clean($sac_theElement));
+         array_push($this->sac_entry_dctermsValues, $this->clean($sac_theValue));
++        $sac_cleanAttributes = array();
++        foreach ($sac_theAttributes as $attrName => $attrValue) {
++          $sac_cleanAttributes[$this->clean($attrName)] = $this->clean($attrValue);
++        }
++        array_push($this->sac_entry_dctermsAttributes, $sac_cleanAttributes);        
+     }
+ 
+     function addFile($sac_thefile) {
+@@ -111,9 +118,14 @@ class PackagerAtomMultipart {
+ 
+         // Write the dcterms metadata
+         for ($i = 0; $i < count($this->sac_entry_dctermsFields); $i++) {
+-            fwrite($fh, "\t<dcterms:" . $this->sac_entry_dctermsFields[$i] . ">" .
+-                $this->sac_entry_dctermsValues[$i] .
+-                "</dcterms:" . $this->sac_entry_dctermsFields[$i] . ">\n");
++            $dcElement = "\t<dcterms:" . $this->sac_entry_dctermsFields[$i];
++            if (!empty($this->sac_entry_dctermsAttributes[$i])) {
++              foreach ($this->sac_entry_dctermsAttributes[$i] as $attrName => $attrValue) {
++                $dcElement .= " $attrName=\"$attrValue\"";
++              }
++            }
++            $dcElement .= ">" . $this->sac_entry_dctermsValues[$i] . "</dcterms:" . $this->sac_entry_dctermsFields[$i] . ">\n";
++            fwrite($fh, $dcElement);
+         }
+ 
+         // Close the file
+diff --git a/packager_atom_twostep.php b/packager_atom_twostep.php
+index 0011518..1df45dd 100644
+--- a/packager_atom_twostep.php
++++ b/packager_atom_twostep.php
+@@ -22,6 +22,7 @@ class PackagerAtomTwoStep {
+     // The dcterms metadata
+     private $sac_entry_dctermsFields;
+     private $sac_entry_dctermsValues;
++    private $sac_entry_dctermsAttributes;
+ 
+     // The entry title
+     private $sac_entry_title;
+@@ -38,8 +39,7 @@ class PackagerAtomTwoStep {
+     // The entry summary text
+     private $sac_entry_summary;
+ 
+-
+-    function __construct($sac_rootin, $sac_dirin, $sac_rootout, $sac_fileout) {
++  function __construct($sac_rootin, $sac_dirin, $sac_rootout, $sac_fileout) {
+         // Store the values
+         $this->sac_root_in = $sac_rootin;
+         $this->sac_dir_in = $sac_dirin;
+@@ -52,6 +52,7 @@ class PackagerAtomTwoStep {
+ 
+         $this->sac_entry_dctermsFields = array();
+         $this->sac_entry_dctermsValues = array();
++        $this->sac_entry_dctermsAttributes = array();
+ 
+         $this->sac_entry_authors = array();
+     }
+@@ -76,9 +77,14 @@ class PackagerAtomTwoStep {
+         $this->sac_entry_summary = $this->clean($sac_theSummary);
+     }
+ 
+-    function addMetadata($sac_theElement, $sac_theValue) {
++    function addMetadata($sac_theElement, $sac_theValue, $sac_theAttributes = array()) {
+         array_push($this->sac_entry_dctermsFields, $this->clean($sac_theElement));
+         array_push($this->sac_entry_dctermsValues, $this->clean($sac_theValue));
++        $sac_cleanAttributes = array();
++        foreach ($sac_theAttributes as $attrName => $attrValue) {
++          $sac_cleanAttributes[$this->clean($attrName)] = $this->clean($attrValue);
++        }
++        array_push($this->sac_entry_dctermsAttributes, $sac_cleanAttributes);
+     }
+ 
+     function addFile($sac_thefile) {
+@@ -112,9 +118,14 @@ class PackagerAtomTwoStep {
+ 
+         // Write the dcterms metadata
+         for ($i = 0; $i < count($this->sac_entry_dctermsFields); $i++) {
+-            fwrite($fh, "\t<dcterms:" . $this->sac_entry_dctermsFields[$i] . ">" .
+-                        $this->sac_entry_dctermsValues[$i] .
+-                        "</dcterms:" . $this->sac_entry_dctermsFields[$i] . ">\n");
++            $dcElement = "\t<dcterms:" . $this->sac_entry_dctermsFields[$i];
++            if (!empty($this->sac_entry_dctermsAttributes[$i])) {
++              foreach ($this->sac_entry_dctermsAttributes[$i] as $attrName => $attrValue) {
++                $dcElement .= " $attrName=\"$attrValue\"";
++              }
++            }
++            $dcElement .= ">" . $this->sac_entry_dctermsValues[$i] . "</dcterms:" . $this->sac_entry_dctermsFields[$i] . ">\n";
++            fwrite($fh, $dcElement);
+         }
+ 
+         // Close the file
+diff --git a/swordappclient.php b/swordappclient.php
+index b08356d..d520462 100644
+--- a/swordappclient.php
++++ b/swordappclient.php
+@@ -12,7 +12,12 @@ require_once("utils.php");
+ class SWORDAPPClient {
+ 
+     private $debug = false;
+-
++    private $curl_opts = array();
++    
++    function SWORDAPPClient($curl_opts = array()) {
++      $this->curl_opts = $curl_opts;
++    }
++    
+     // Request a Service Document from the specified url, with the specified credentials,
+     // and on-behalf-of the specified user.
+     function servicedocument($sac_url, $sac_u, $sac_p, $sac_obo) {
+@@ -493,7 +498,7 @@ class SWORDAPPClient {
+ 
+         // Return the content from curl, rather than outputting it
+         curl_setopt($sac_curl, CURLOPT_RETURNTRANSFER, true);
+-
++        
+         // Set the debug option
+         curl_setopt($sac_curl, CURLOPT_VERBOSE, $this->debug);
+ 
+@@ -504,6 +509,11 @@ class SWORDAPPClient {
+         if(!empty($sac_user) && !empty($sac_password)) {
+             curl_setopt($sac_curl, CURLOPT_USERPWD, $sac_user . ":" . $sac_password);
+         }
++        
++        // Set user-specified curl opts
++        foreach ($this->curl_opts as $opt => $val) {
++          curl_setopt($sac_curl, $opt, $val);
++        }
+ 
+         // Return the initalised curl object
+         return $sac_curl;
