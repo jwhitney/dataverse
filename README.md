@@ -9,15 +9,34 @@ The [Dataverse Network Project](http://thedata.org/) and the [Public Knowledge P
 Refer to the [Dataverse Plugin Guide](https://docs.google.com/document/d/1QgxtxMaWdSZ8gI3wHDkE5EfP4W3M2Za-4DhmX_x3pY0/edit?disco=AAAAAGd77n8#) 
 for an overview of data publication workflows supported by the plugin in OJS.
 
-### Installing the plugin
+## Installing the plugin
 
-Download the plugin: [dataverse-1.0.0.0.tar.gz](https://drive.google.com/file/d/0B8Zfl4GMgyejdFBKQ3JpNHBtZU0/edit?usp=sharing)
+### OJS 2.4.3
+
+Download [dataverse-2.0.0.0.tar.gz](https://github.com/jwhitney/dataverse/releases). Use the web plugin installer 
+in the journal management pages to install the plugin: click "System Plugins", then "Install a New Plugin" to 
+upload the downloaded *.tar.gz file.
+
+** Before enabling & configuring the plugin,** please run the following commands to patch the swordappv2 library
+included in OJS 2.4.3. 
+
+From the OJS install directory, test the patch with: 
+
+`patch --dry-run -d lib/pkp/lib/swordappv2 < plugins/generic/dataverse/swordappv2.diff`
+
+If the dry run indicates the patch will apply cleanly, run:
+
+`patch -d lib/pkp/lib/swordappv2 < plugins/generic/dataverse/swordappv2.diff`
+
+### OJS 2.4.2 & earlier
+
+Download [dataverse-1.0.0.0.tar.gz](https://github.com/jwhitney/dataverse/releases)
 
 If the SWORD plugin is present in your OJS install, at `plugins/generic/sword`, remove it.
-The SWORD plugin uses an earlier version of the swordapp PHP library and **the Dataverse plugin can't be
+In OJS versions 2.4.2 and earlier, the SWORD plugin uses an incompatible version of the swordapp PHP library and **the Dataverse plugin can't be
 installed unless it's removed**. 
 
-#### OJS 2.4
+#### OJS 2.4.0, 2.4.1, 2.4.2
 
 Use the web plugin installer available from the journal management pages: click "System Plugins," 
 then "Install a New Plugin" to upload the downloaded *.tar.gz file. 
