@@ -32,7 +32,7 @@ Enable and configure the plugin as described in the [guide](https://docs.google.
 
 ### OJS 2.4.2 & earlier
 
-Download [dataverse-1.0.0.0.tar.gz](https://github.com/jwhitney/dataverse/releases)
+Download [dataverse-1.0.1.0.tar.gz](https://github.com/jwhitney/dataverse/releases)
 
 If the SWORD plugin is present in your OJS install, at `plugins/generic/sword`, remove it.
 In OJS versions 2.4.2 and earlier, the SWORD plugin uses an incompatible version of the swordapp PHP library and **the Dataverse plugin can't be
