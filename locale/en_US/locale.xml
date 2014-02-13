@@ -12,9 +12,12 @@
  
 <locale name="en_US" full_name="U.S. English">
 
-	<!-- Dataverse Plugin -->
+  <!-- Dataverse Plugin -->
   <message key="plugins.generic.dataverse.displayName">Dataverse Plugin</message>
-	<message key="plugins.generic.dataverse.description">Deposit data sets and/or other supplementary files to a Dataverse.</message>
+  <message key="plugins.generic.dataverse.description">Deposit data sets and/or other supplementary files to a Dataverse.</message>
+  
+  <!-- Installation errors -->
+  <message key="plugins.generic.dataverse.install.libraryPathError">Plugin was not successfully copied. This may be a permissions problem. Please make sure that the web server is able to write to the plugin's library directory (including subdirectories) in lib/pkp/plugins. Don't forget to secure the directory again after plugin installation. </message>
 
   <!-- Set up Dataverse: DVN URL and authentication details -->
   <message key="plugins.generic.dataverse.settings.connect">Connect</message>

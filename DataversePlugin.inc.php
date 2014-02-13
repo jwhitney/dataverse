@@ -33,60 +33,67 @@ class DataversePlugin extends GenericPlugin {
 	/**
 	 * Called as a plugin is registered to the registry
 	 * @param $category String Name of category plugin was registered to
-   * @param $path String
+     * @param $path String
 	 * @return boolean True iff plugin initialized successfully; if false,
 	 * 	the plugin will not be registered.
 	 */
 	function register($category, $path) {
-		$success = parent::register($category, $path);
-    if ($success && $this->getEnabled()) {
-      // Dataverse Study objects
-      $this->import('classes.DataverseStudyDAO');
-			$dataverseStudyDao = new DataverseStudyDAO($this->getName());      
-			$returner =& DAORegistry::registerDAO('DataverseStudyDAO', $dataverseStudyDao);
-      // Files associated with Dataverse studies
-      $this->import('classes.DataverseFileDAO');      
-			$dataverseFileDao = new DataverseFileDAO($this->getName());      
-			$returner =& DAORegistry::registerDAO('DataverseFileDAO', $dataverseFileDao);      
-      // Register as a block plugin
-      HookRegistry::register('PluginRegistry::loadCategory', array(&$this, 'loadCategory'));
-      // Handler for public (?) access to Dataverse-related information (i.e., terms of Use)
-      HookRegistry::register('LoadHandler', array(&$this, 'setupPublicHandler'));
-      // Enable TinyMCEditor in textarea fields
-      HookRegistry::register('TinyMCEPlugin::getEnableFields', array(&$this, 'getTinyMCEEnabledFields'));
-      // Include data policy in About page
-      HookRegistry::register('Templates::About::Index::Policies', array(&$this, 'addPolicyLinks'));
-      // Add Dataverse deposit options to author submission suppfile form: 
-      HookRegistry::register('Templates::Author::Submit::SuppFile::AdditionalMetadata', array(&$this, 'addSuppFileOptions'));
-      HookRegistry::register('authorsubmitsuppfileform::initdata', array(&$this, 'suppFileFormInitData'));      
-      HookRegistry::register('authorsubmitsuppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
-      HookRegistry::register('authorsubmitsuppfileform::execute', array(&$this, 'authorSuppFileFormExecute'));            
-      // Add Dataverse deposit options to suppfile form for completed submissions
-      HookRegistry::register('Templates::Submission::SuppFile::AdditionalMetadata', array(&$this, 'addSuppFileOptions'));
-      HookRegistry::register('suppfileform::initdata', array(&$this, 'suppFileFormInitData'));
-      HookRegistry::register('suppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
-      HookRegistry::register('suppfileform::execute', array(&$this, 'suppFileFormExecute'));      
-      // Handle suppfile insertion: prevent duplicate insertion of a suppfile
-      HookRegistry::register('suppfiledao::_insertsuppfile', array(&$this, 'handleSuppFileInsertion'));
-      // Handle suppfile deletion: only necessary for completed submissions
-      HookRegistry::register('suppfiledao::_deletesuppfilebyid', array(&$this, 'handleSuppFileDeletion'));
-      // Add form validator to check whether submission includes data files 
-      HookRegistry::register('authorsubmitstep4form::Constructor', array(&$this, 'addAuthorSubmitFormValidator'));
-      // Create study for author submissions
-      HookRegistry::register('Author::SubmitHandler::saveSubmit', array(&$this, 'handleAuthorSubmission'));
-      // Update cataloguing information when submission metadata is edited
-      HookRegistry::register('metadataform::execute', array(&$this, 'handleMetadataUpdate'));
-      // Add data citation to submission summary for section editor
-      HookRegistry::register('TemplateManager::include', array(&$this, 'addDataCitation'));
-      // Replace suppfiles in Dataverse with linked data citations
-      HookRegistry::register('TemplateManager::display', array(&$this, 'addDataCitationRTSuppFiles'));
-      // Release or delete studies according to editor decision
-      HookRegistry::register('SectionEditorAction::unsuitableSubmission', array(&$this, 'handleUnsuitableSubmission'));
-      HookRegistry::register('SectionEditorAction::recordDecision', array(&$this, 'handleEditorDecision'));
-      // Release studies on article publication
-      HookRegistry::register('articledao::_updatearticle', array(&$this, 'handleArticleUpdate'));
-    }
-		return $success;
+      $success = parent::register($category, $path);
+      if ($success) {
+        // Pre-installation/upgrade: verify write access to swordappv2 lib path        
+        HookRegistry::register('Installer::preInstall', array(&$this, 'verifyLibPath'));
+          
+        if ($this->getEnabled()) {
+          // Dataverse studies
+          $this->import('classes.DataverseStudyDAO');
+          $dataverseStudyDao = new DataverseStudyDAO($this->getName());      
+          $returner =& DAORegistry::registerDAO('DataverseStudyDAO', $dataverseStudyDao);
+
+          // Files associated with Dataverse studies
+          $this->import('classes.DataverseFileDAO');      
+          $dataverseFileDao = new DataverseFileDAO($this->getName());      
+          $returner =& DAORegistry::registerDAO('DataverseFileDAO', $dataverseFileDao);
+          
+          // Register as a block plugin
+          HookRegistry::register('PluginRegistry::loadCategory', array(&$this, 'loadCategory'));
+          // Handler for public (?) access to Dataverse-related information (i.e., terms of Use)
+          HookRegistry::register('LoadHandler', array(&$this, 'setupPublicHandler'));
+          // Enable TinyMCEditor in textarea fields
+          HookRegistry::register('TinyMCEPlugin::getEnableFields', array(&$this, 'getTinyMCEEnabledFields'));
+          // Include data policy in About page
+          HookRegistry::register('Templates::About::Index::Policies', array(&$this, 'addPolicyLinks'));
+          // Add Dataverse deposit options to author submission suppfile form: 
+          HookRegistry::register('Templates::Author::Submit::SuppFile::AdditionalMetadata', array(&$this, 'addSuppFileOptions'));
+          HookRegistry::register('authorsubmitsuppfileform::initdata', array(&$this, 'suppFileFormInitData'));      
+          HookRegistry::register('authorsubmitsuppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
+          HookRegistry::register('authorsubmitsuppfileform::execute', array(&$this, 'authorSuppFileFormExecute'));            
+          // Add Dataverse deposit options to suppfile form for completed submissions
+          HookRegistry::register('Templates::Submission::SuppFile::AdditionalMetadata', array(&$this, 'addSuppFileOptions'));
+          HookRegistry::register('suppfileform::initdata', array(&$this, 'suppFileFormInitData'));
+          HookRegistry::register('suppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
+          HookRegistry::register('suppfileform::execute', array(&$this, 'suppFileFormExecute'));      
+          // Handle suppfile insertion: prevent duplicate insertion of a suppfile
+          HookRegistry::register('suppfiledao::_insertsuppfile', array(&$this, 'handleSuppFileInsertion'));
+          // Handle suppfile deletion: only necessary for completed submissions
+          HookRegistry::register('suppfiledao::_deletesuppfilebyid', array(&$this, 'handleSuppFileDeletion'));
+          // Add form validator to check whether submission includes data files 
+          HookRegistry::register('authorsubmitstep4form::Constructor', array(&$this, 'addAuthorSubmitFormValidator'));
+          // Create study for author submissions
+          HookRegistry::register('Author::SubmitHandler::saveSubmit', array(&$this, 'handleAuthorSubmission'));
+          // Update cataloguing information when submission metadata is edited
+          HookRegistry::register('metadataform::execute', array(&$this, 'handleMetadataUpdate'));
+          // Add data citation to submission summary for section editor
+          HookRegistry::register('TemplateManager::include', array(&$this, 'addDataCitation'));
+          // Replace suppfiles in Dataverse with linked data citations
+          HookRegistry::register('TemplateManager::display', array(&$this, 'addDataCitationRTSuppFiles'));
+          // Release or delete studies according to editor decision
+          HookRegistry::register('SectionEditorAction::unsuitableSubmission', array(&$this, 'handleUnsuitableSubmission'));
+          HookRegistry::register('SectionEditorAction::recordDecision', array(&$this, 'handleEditorDecision'));
+          // Release studies on article publication
+          HookRegistry::register('articledao::_updatearticle', array(&$this, 'handleArticleUpdate'));
+        } // end if (plugin is enabled)
+      }// end if (plugin registered successfully)
+      return $success;
 	}
 
 	function getDisplayName() {
@@ -212,6 +219,33 @@ class DataversePlugin extends GenericPlugin {
 		}
 		return $smarty->smartyUrl($params, $smarty);
 	}
+  
+  /**
+   * Pre-installation/upgrade callback: while the web installer checks that 
+   * lib/pkp/plugins is writable, it does NOT report an error when the swordappv2
+   * library is already installed in lib/pkp/plugins/generic/dataverse and NOT
+   * writable: the plugin appears to install correctly but does not update the
+   * the swordappv2 library.
+   * 
+   * @param string $hookName
+   * @param array $args 
+   */  
+  function verifyLibPath($hookName, $args) {
+    $installer =& $args[0];
+    $result =& $args[1];
+    
+    $installedLibraryPath = Core::getBaseDir() . 
+            DIRECTORY_SEPARATOR . 'lib' . DIRECTORY_SEPARATOR . 'pkp' . 
+            DIRECTORY_SEPARATOR . 'plugins' . DIRECTORY_SEPARATOR . 'generic' . 
+            DIRECTORY_SEPARATOR . 'dataverse' . DIRECTORY_SEPARATOR . 'swordappv2';
+    
+    if (file_exists($installedLibraryPath) && !is_writable($installedLibraryPath)) {
+      $this->addLocaleData();
+      $installer->setError(INSTALLER_ERROR_GENERAL, 'plugins.generic.dataverse.install.libraryPathError');
+      $result = false;      
+    }
+    return false;
+  } 
   
   /**
    * Callback to register plugin as a block
