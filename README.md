@@ -43,11 +43,13 @@ installed unless it's removed**.
 Use the web plugin installer available from the journal management pages: click "System Plugins," 
 then "Install a New Plugin" to upload the downloaded *.tar.gz file. 
 
-The `plugins` and `lib/pkp/plugins` directories must be web-writable. PHP's `upload_max_filesize` and
-`post_max_size` settings must be large enough to allow the plugin source (about 2.3M) to be uploaded. 
+**Please make sure the web server is able to write to the `plugins` and `lib/pkp/plugins` directories (including subdirectories).** 
+Don't forget to secure the directories again after installing the plugin. 
+
+PHP's `upload_max_filesize` and `post_max_size` settings must be large enough to allow the plugin source (about 2.3M) to be uploaded. 
 
 After installation, go to "System Plugins" then "Generic Plugins" to enable and configure the 
-Dataverse plugin.
+Dataverse plugin as described in the [guide](https://docs.google.com/document/d/1QgxtxMaWdSZ8gI3wHDkE5EfP4W3M2Za-4DhmX_x3pY0/edit?disco=AAAAAGd77n8#).
 
 #### OJS 2.3
 
@@ -55,5 +57,5 @@ Dataverse plugin.
 * Move the SWORD library files from `plugins/generic/dataverse/lib/swordappv2` to 'lib/pkp/plugins/generic/dataverse/swordappv2`
 * From the OJS install directory, run `php tools/dbXMLtoSQL.php -schema execute plugins/generic/dataverse/schema.xml` 
 to install database tables used by the plugin.
-* Enable and configure the plugin as described in the [guide](https://docs.google.com/document/d/1QgxtxMaWdSZ8gI3wHDkE5EfP4W3M2Za-4DhmX_x3pY0/edit?disco=AAAAAGd77n8#) 
+* Enable and configure the plugin as described in the [guide](https://docs.google.com/document/d/1QgxtxMaWdSZ8gI3wHDkE5EfP4W3M2Za-4DhmX_x3pY0/edit?disco=AAAAAGd77n8#). 
 
