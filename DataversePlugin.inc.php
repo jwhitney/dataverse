@@ -77,7 +77,9 @@ class DataversePlugin extends GenericPlugin {
       // Update cataloguing information when submission metadata is edited
       HookRegistry::register('metadataform::execute', array(&$this, 'handleMetadataUpdate'));
       // Add data citation to submission summary for section editor
-      HookRegistry::register('TemplateManager::include', array(&$this, 'addDataCitation'));
+      HookRegistry::register('TemplateManager::include', array(&$this, 'addDataCitationSubmission'));
+      // Display data citation on article landing page
+      HookRegistry::register('Templates::Article::MoreInfo', array(&$this, 'addDataCitationArticle'));
       // Replace suppfiles in Dataverse with linked data citations
       HookRegistry::register('TemplateManager::display', array(&$this, 'addDataCitationRTSuppFiles'));
       // Release or delete studies according to editor decision
@@ -291,11 +293,36 @@ class DataversePlugin extends GenericPlugin {
   }
   
   /**
+   * Add data citation to article landing page.
+   * @param String $hookName
+   * @param array $args
+   */
+  function addDataCitationArticle($hookName, $args) {
+		$smarty =& $args[1];
+		$output =& $args[2];
+    
+		$templateMgr =& TemplateManager::getManager();    
+    $article =& $templateMgr->get_template_vars('article');
+    
+    $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
+    $study =& $dataverseStudyDao->getStudyBySubmissionId($article->getId());
+    if (!isset($study)) return false;
+    
+    $templateMgr->assign('dataCitation', str_replace(
+            $study->getPersistentUri(),
+            '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
+            $study->getDataCitation()));    
+
+    $output .= $templateMgr->fetch($this->getTemplatePath() . 'dataCitationArticle.tpl');
+		return false;
+  }
+  
+  /**
    * Add data citation submission templates.
    * @param String $hookName
    * @param array $args
    */
-  function addDataCitation($hookName, $args) {
+  function addDataCitationSubmission($hookName, $args) {
     $templateMgr =& $args[0];
     $params =& $args[1];
     
