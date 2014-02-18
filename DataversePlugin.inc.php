@@ -48,8 +48,6 @@ class DataversePlugin extends GenericPlugin {
       $this->import('classes.DataverseFileDAO');      
 			$dataverseFileDao = new DataverseFileDAO($this->getName());      
 			$returner =& DAORegistry::registerDAO('DataverseFileDAO', $dataverseFileDao);      
-      // Register as a block plugin
-      HookRegistry::register('PluginRegistry::loadCategory', array(&$this, 'loadCategory'));
       // Handler for public (?) access to Dataverse-related information (i.e., terms of Use)
       HookRegistry::register('LoadHandler', array(&$this, 'setupPublicHandler'));
       // Enable TinyMCEditor in textarea fields
@@ -215,24 +213,6 @@ class DataversePlugin extends GenericPlugin {
 		return $smarty->smartyUrl($params, $smarty);
 	}
   
-  /**
-   * Callback to register plugin as a block
-   * @param string $hookName
-   * @param array $args
-   */
-  function loadCategory($hookName, $args) {
-		$category =& $args[0];
-		$plugins =& $args[1];
-		switch ($category) {
-			case 'blocks':
-				$this->import('DataverseBlockPlugin');
-				$blockPlugin = new DataverseBlockPlugin($this->getName());
-				$plugins[$blockPlugin->getSeq()][$blockPlugin->getPluginPath()] =& $blockPlugin;
-				break;
-		}    
-    return false;
-  }
-
 	/**
 	 * Callback invoked to set up public access to data files
 	 */
