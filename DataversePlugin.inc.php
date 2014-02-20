@@ -51,8 +51,10 @@ class DataversePlugin extends GenericPlugin {
           
       // Handler for public (?) access to Dataverse-related information (i.e., terms of Use)
       HookRegistry::register('LoadHandler', array(&$this, 'setupPublicHandler'));
-      // Add data citation to submissions, published articles, and reading tools  
+      // Add data citation to submissions & reading tools  
       HookRegistry::register('TemplateManager::display', array(&$this, 'handleTemplateDisplay'));
+      // Add data citation to article landing page
+      HookRegistry::register('Templates::Article::MoreInfo', array(&$this, 'addDataCitationArticle'));
       // Enable TinyMCEditor in textarea fields
       HookRegistry::register('TinyMCEPlugin::getEnableFields', array(&$this, 'getTinyMCEEnabledFields'));
       // Include data policy in About page
@@ -83,7 +85,7 @@ class DataversePlugin extends GenericPlugin {
       // Release studies on article publication
       HookRegistry::register('articledao::_updatearticle', array(&$this, 'handleArticleUpdate'));
     }
-      return $success;
+    return $success;
 	}
 
 	function getDisplayName() {
@@ -244,9 +246,6 @@ class DataversePlugin extends GenericPlugin {
 		$template =& $args[1];
 
 		switch ($template) {
-			case 'article/article.tpl':
-				HookRegistry::register('TemplateManager::include', array(&$this, 'handleArticleTemplateInclude'));
-				break;
       case 'author/submission.tpl':      
       case 'sectionEditor/submission.tpl':
         $templateMgr->register_outputfilter(array(&$this, 'submissionOutputFilter'));
@@ -276,34 +275,6 @@ class DataversePlugin extends GenericPlugin {
 		return false;
 	}
 
-
-  /**
-   * Hook callback: add data citation to submissions, published articles, and
-   * reading tools
-   */
-  function handleArticleTemplateInclude($hookName, $args) {
-		$templateMgr =& $args[0];
-		$params =& $args[1];
-    
-		if (!isset($params['smarty_include_tpl_file'])) return false;
-    
-		switch ($params['smarty_include_tpl_file']) {
-			case 'article/comments.tpl':
-        $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');        
-        $article =& $templateMgr->get_template_vars('article');
-        $study =& $dataverseStudyDao->getStudyBySubmissionId($article->getId());
-        if (!isset($study)) return false;
-        
-        $templateMgr->assign('dataCitation', str_replace(
-                $study->getPersistentUri(),
-                '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
-                $study->getDataCitation()));
-				$templateMgr->display($this->getTemplatePath() . 'dataCitationArticle.tpl', 'text/html', 'DataversePlugin::addArticleDataCitation');
-				break;
-		}
-		return false;    
-  }
-  
   /**
    * Output filter: add data citation to editor & author view of submission summary
    */
@@ -330,6 +301,31 @@ class DataversePlugin extends GenericPlugin {
 	}
   
   /**
+   * Add data citation to article landing page.
+   * @param String $hookName
+   * @param array $args
+   */
+  function addDataCitationArticle($hookName, $args) {
+		$smarty =& $args[1];
+		$output =& $args[2];
+    
+		$templateMgr =& TemplateManager::getManager();    
+    $article =& $templateMgr->get_template_vars('article');
+    
+    $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
+    $study =& $dataverseStudyDao->getStudyBySubmissionId($article->getId());
+    if (!isset($study)) return false;
+    
+    $templateMgr->assign('dataCitation', str_replace(
+            $study->getPersistentUri(),
+            '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
+            $study->getDataCitation()));    
+
+    $output .= $templateMgr->fetch($this->getTemplatePath() . 'dataCitationArticle.tpl');
+		return false;
+  }  
+  
+  /**
    * Hook into TinyMCE for the text areas on the settings form.
    * @param String $hookName
    * @param array $args
@@ -343,7 +339,7 @@ class DataversePlugin extends GenericPlugin {
         );
     return false;
   }
-  
+
   /**
    * Add link to data availability policy
    * @param String $hookName
