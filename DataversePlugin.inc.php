@@ -33,37 +33,40 @@ class DataversePlugin extends GenericPlugin {
 	/**
 	 * Called as a plugin is registered to the registry
 	 * @param $category String Name of category plugin was registered to
-   * @param $path String
+     * @param $path String
 	 * @return boolean True iff plugin initialized successfully; if false,
 	 * 	the plugin will not be registered.
 	 */
 	function register($category, $path) {
-		$success = parent::register($category, $path);
+    $success = parent::register($category, $path);
     if ($success && $this->getEnabled()) {
       // Dataverse Study objects
       $this->import('classes.DataverseStudyDAO');
-			$dataverseStudyDao = new DataverseStudyDAO($this->getName());      
+      $dataverseStudyDao = new DataverseStudyDAO($this->getName());
 			$returner =& DAORegistry::registerDAO('DataverseStudyDAO', $dataverseStudyDao);
       // Files associated with Dataverse studies
       $this->import('classes.DataverseFileDAO');      
-			$dataverseFileDao = new DataverseFileDAO($this->getName());      
-			$returner =& DAORegistry::registerDAO('DataverseFileDAO', $dataverseFileDao);      
+      $dataverseFileDao = new DataverseFileDAO($this->getName());      
+      $returner =& DAORegistry::registerDAO('DataverseFileDAO', $dataverseFileDao);
+          
       // Handler for public (?) access to Dataverse-related information (i.e., terms of Use)
       HookRegistry::register('LoadHandler', array(&$this, 'setupPublicHandler'));
+      // Add data citation to submissions, published articles, and reading tools  
+      HookRegistry::register('TemplateManager::display', array(&$this, 'handleTemplateDisplay'));
       // Enable TinyMCEditor in textarea fields
       HookRegistry::register('TinyMCEPlugin::getEnableFields', array(&$this, 'getTinyMCEEnabledFields'));
       // Include data policy in About page
       HookRegistry::register('Templates::About::Index::Policies', array(&$this, 'addPolicyLinks'));
       // Add Dataverse deposit options to author submission suppfile form: 
       HookRegistry::register('Templates::Author::Submit::SuppFile::AdditionalMetadata', array(&$this, 'addSuppFileOptions'));
-      HookRegistry::register('authorsubmitsuppfileform::initdata', array(&$this, 'suppFileFormInitData'));      
+      HookRegistry::register('authorsubmitsuppfileform::initdata', array(&$this, 'suppFileFormInitData'));
       HookRegistry::register('authorsubmitsuppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
-      HookRegistry::register('authorsubmitsuppfileform::execute', array(&$this, 'authorSuppFileFormExecute'));            
+      HookRegistry::register('authorsubmitsuppfileform::execute', array(&$this, 'authorSuppFileFormExecute'));
       // Add Dataverse deposit options to suppfile form for completed submissions
       HookRegistry::register('Templates::Submission::SuppFile::AdditionalMetadata', array(&$this, 'addSuppFileOptions'));
       HookRegistry::register('suppfileform::initdata', array(&$this, 'suppFileFormInitData'));
       HookRegistry::register('suppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
-      HookRegistry::register('suppfileform::execute', array(&$this, 'suppFileFormExecute'));      
+      HookRegistry::register('suppfileform::execute', array(&$this, 'suppFileFormExecute'));
       // Handle suppfile insertion: prevent duplicate insertion of a suppfile
       HookRegistry::register('suppfiledao::_insertsuppfile', array(&$this, 'handleSuppFileInsertion'));
       // Handle suppfile deletion: only necessary for completed submissions
@@ -74,19 +77,13 @@ class DataversePlugin extends GenericPlugin {
       HookRegistry::register('Author::SubmitHandler::saveSubmit', array(&$this, 'handleAuthorSubmission'));
       // Update cataloguing information when submission metadata is edited
       HookRegistry::register('metadataform::execute', array(&$this, 'handleMetadataUpdate'));
-      // Add data citation to submission summary for section editor
-      HookRegistry::register('TemplateManager::include', array(&$this, 'addDataCitationSubmission'));
-      // Display data citation on article landing page
-      HookRegistry::register('Templates::Article::MoreInfo', array(&$this, 'addDataCitationArticle'));
-      // Replace suppfiles in Dataverse with linked data citations
-      HookRegistry::register('TemplateManager::display', array(&$this, 'addDataCitationRTSuppFiles'));
       // Release or delete studies according to editor decision
       HookRegistry::register('SectionEditorAction::unsuitableSubmission', array(&$this, 'handleUnsuitableSubmission'));
       HookRegistry::register('SectionEditorAction::recordDecision', array(&$this, 'handleEditorDecision'));
       // Release studies on article publication
       HookRegistry::register('articledao::_updatearticle', array(&$this, 'handleArticleUpdate'));
     }
-		return $success;
+      return $success;
 	}
 
 	function getDisplayName() {
@@ -213,7 +210,7 @@ class DataversePlugin extends GenericPlugin {
 		return $smarty->smartyUrl($params, $smarty);
 	}
   
-	/**
+  /**
 	 * Callback invoked to set up public access to data files
 	 */
 	function setupPublicHandler($hookName, $params) {
@@ -237,6 +234,100 @@ class DataversePlugin extends GenericPlugin {
 			}
 		}
 	}  
+  
+	/**
+	 * Hook callback: add data citation to submissions, published articles, and
+   * reading tools.
+	 */
+	function handleTemplateDisplay($hookName, $args) {
+		$templateMgr =& $args[0];
+		$template =& $args[1];
+
+		switch ($template) {
+			case 'article/article.tpl':
+				HookRegistry::register('TemplateManager::include', array(&$this, 'handleArticleTemplateInclude'));
+				break;
+      case 'author/submission.tpl':      
+      case 'sectionEditor/submission.tpl':
+        $templateMgr->register_outputfilter(array(&$this, 'submissionOutputFilter'));
+				break;      
+      case 'rt/suppFiles.tpl':
+      case 'rt/suppFilesView.tpl':        
+      case 'rt/metadata.tpl':
+        $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');        
+        $article =& $templateMgr->get_template_vars('article');
+        $study =& $dataverseStudyDao->getStudyBySubmissionId($article->getId());
+        if (!isset($study)) return false;
+        $dataverseFileDao =& DAORegistry::getDAO('DataverseFileDAO');
+        $dvFiles =& $dataverseFileDao->getDataverseFilesBySubmissionId($article->getId());
+        $dvFileIndex = array();
+        foreach ($dvFiles as $dvFile) {
+          $dvFileIndex[$dvFile->getSuppFileId()] = true;
+        }
+        $templateMgr->assign_by_ref('study', $study);        
+        $templateMgr->assign('dvFileIndex', $dvFileIndex);
+        $templateMgr->assign('dataCitation', str_replace(
+                $study->getPersistentUri(),
+                '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
+                $study->getDataCitation()));        
+        $templateMgr->display($this->getTemplatePath() .'/'. $template);
+        return true;
+		}
+		return false;
+	}
+
+
+  /**
+   * Hook callback: add data citation to submissions, published articles, and
+   * reading tools
+   */
+  function handleArticleTemplateInclude($hookName, $args) {
+		$templateMgr =& $args[0];
+		$params =& $args[1];
+    
+		if (!isset($params['smarty_include_tpl_file'])) return false;
+    
+		switch ($params['smarty_include_tpl_file']) {
+			case 'article/comments.tpl':
+        $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');        
+        $article =& $templateMgr->get_template_vars('article');
+        $study =& $dataverseStudyDao->getStudyBySubmissionId($article->getId());
+        if (!isset($study)) return false;
+        
+        $templateMgr->assign('dataCitation', str_replace(
+                $study->getPersistentUri(),
+                '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
+                $study->getDataCitation()));
+				$templateMgr->display($this->getTemplatePath() . 'dataCitationArticle.tpl', 'text/html', 'DataversePlugin::addArticleDataCitation');
+				break;
+		}
+		return false;    
+  }
+  
+  /**
+   * Output filter: add data citation to editor & author view of submission summary
+   */
+  function submissionOutputFilter($output, &$smarty) {
+    $submission =& $smarty->get_template_vars('submission');
+    if (!isset($submission)) return $output;
+      
+    $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
+    $study =& $dataverseStudyDao->getStudyBySubmissionId($submission->getId());
+    if (!isset($study)) return $output;
+    
+    $index = strpos($output, '<td class="label">'. __('submission.submitter'));
+    if ($index !== false) {
+      $newOutput = substr($output,0,$index);
+      $newOutput .= '<td class="label">'.  __('plugins.generic.dataverse.dataCitation') .'</td>';
+      $newOutput .= '<td class="value" colspan="2">';
+      $newOutput .= str_replace($study->getPersistentUri(), '<a href="'. $study->getPersistentUri() .'">'. $study->getPersistentUri() .'</a>', $study->getDataCitation());
+      $newOutput .= '</td></tr><tr>';
+      $newOutput .= substr($output, $index);
+      $output =& $newOutput;
+    }
+		$smarty->unregister_outputfilter('submissionSummaryOutputFilter');
+    return $output;
+	}
   
   /**
    * Hook into TinyMCE for the text areas on the settings form.
@@ -268,111 +359,6 @@ class DataversePlugin extends GenericPlugin {
       $output .= '<li>&#187; <a href="'. $templateMgr->smartyUrl(array('page' => 'dataverse', 'op'=>'dataAvailabilityPolicy'), $smarty) .'">';
       $output .= __('plugins.generic.dataverse.settings.dataAvailabilityPolicy');
       $output .= '</a></li>';
-    }
-    return false;
-  }
-  
-  /**
-   * Add data citation to article landing page.
-   * @param String $hookName
-   * @param array $args
-   */
-  function addDataCitationArticle($hookName, $args) {
-		$smarty =& $args[1];
-		$output =& $args[2];
-    
-		$templateMgr =& TemplateManager::getManager();    
-    $article =& $templateMgr->get_template_vars('article');
-    
-    $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
-    $study =& $dataverseStudyDao->getStudyBySubmissionId($article->getId());
-    if (!isset($study)) return false;
-    
-    $templateMgr->assign('dataCitation', str_replace(
-            $study->getPersistentUri(),
-            '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
-            $study->getDataCitation()));    
-
-    $output .= $templateMgr->fetch($this->getTemplatePath() . 'dataCitationArticle.tpl');
-		return false;
-  }
-  
-  /**
-   * Add data citation submission templates.
-   * @param String $hookName
-   * @param array $args
-   */
-  function addDataCitationSubmission($hookName, $args) {
-    $templateMgr =& $args[0];
-    $params =& $args[1];
-    
-    if ($params['smarty_include_tpl_file'] == 'sectionEditor/submission/management.tpl' || $params['smarty_include_tpl_file'] == 'author/submission/management.tpl') {
-      $submission =& $templateMgr->get_template_vars('submission');            
-      if (!isset($submission)) return false;
-      
-      $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
-      $study =& $dataverseStudyDao->getStudyBySubmissionId($submission->getId());
-      if (!isset($study)) return false;      
-      
-      $templateMgr->assign('dataCitation',  
-              str_replace(
-                      $study->getPersistentUri(),
-                      '<a href="'. $study->getPersistentUri() .'">'. $study->getPersistentUri() .'</a>',
-                      $study->getDataCitation()
-                    )
-              );
-
-      switch ($params['smarty_include_tpl_file']) {
-        case 'author/submission/management.tpl':
-          $params['smarty_include_tpl_file'] = $this->getTemplatePath() . 'authorSubmissionManagement.tpl';
-          break;
-        case 'sectionEditor/submission/management.tpl':
-          $params['smarty_include_tpl_file'] = $this->getTemplatePath() . 'sectionEditorSubmissionManagement.tpl';
-          break;
-      }
-    }
-    return false;
-  }
-  
-  /**
-   * Replace links to RT suppfiles in Dataverse with linked data citations
-   * @param string $hookName
-   * @param array $args
-   */
-  function addDataCitationRTSuppFiles($hookName, $args) {
-    $templateMgr =& $args[0];
-    $template =& $args[1];
-    
-    if ($template == 'rt/suppFiles.tpl' || $template == 'rt/suppFileView.tpl' || $template == 'rt/metadata.tpl') {
-      $article =& $templateMgr->get_template_vars('article');
-      $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
-      $study =& $dataverseStudyDao->getStudyBySubmissionId($article->getId());
-      if (!isset($study)) return false;
-      $templateMgr->assign_by_ref('study', $study);
-      
-      $dataverseFileDao =& DAORegistry::getDAO('DataverseFileDAO');
-      $dvFiles =& $dataverseFileDao->getDataverseFilesBySubmissionId($article->getId());
-      $dvFileIndex = array();
-      foreach ($dvFiles as $dvFile) {
-        $dvFileIndex[$dvFile->getSuppFileId()] = true;
-      }
-      $templateMgr->assign('dvFileIndex', $dvFileIndex);
-      $templateMgr->assign('dataCitation', str_replace(
-                      $study->getPersistentUri(),
-                      '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
-                      $study->getDataCitation()));
-
-      switch ($template) {
-        case 'rt/suppFiles.tpl':
-          $templateMgr->display($this->getTemplatePath() . '/rtSuppFiles.tpl');
-          return true;
-        case 'rt/suppFileView.tpl':
-          $templateMgr->display($this->getTemplatePath() . '/rtSuppFileView.tpl');
-          return true;
-        case 'rt/metadata.tpl':          
-          $templateMgr->display($this->getTemplatePath() . '/rtMetadata.tpl');
-          return true;
-      }
     }
     return false;
   }
