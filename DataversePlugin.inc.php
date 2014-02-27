@@ -59,13 +59,16 @@ class DataversePlugin extends GenericPlugin {
       HookRegistry::register('TinyMCEPlugin::getEnableFields', array(&$this, 'getTinyMCEEnabledFields'));
       // Include data policy in About page
       HookRegistry::register('Templates::About::Index::Policies', array(&$this, 'addPolicyLinks'));
-      // Add Dataverse deposit options to author submission suppfile form: 
-      HookRegistry::register('Templates::Author::Submit::SuppFile::AdditionalMetadata', array(&$this, 'addSuppFileOptions'));
+
+      // Add data publication options to author submission suppfile form: 
+      HookRegistry::register('Templates::Author::Submit::SuppFile::AdditionalMetadata', array(&$this, 'suppFileAdditionalMetadata'));
+      
       HookRegistry::register('authorsubmitsuppfileform::initdata', array(&$this, 'suppFileFormInitData'));
       HookRegistry::register('authorsubmitsuppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
       HookRegistry::register('authorsubmitsuppfileform::execute', array(&$this, 'authorSuppFileFormExecute'));
-      // Add Dataverse deposit options to suppfile form for completed submissions
-      HookRegistry::register('Templates::Submission::SuppFile::AdditionalMetadata', array(&$this, 'addSuppFileOptions'));
+      
+// Add Dataverse deposit options to suppfile form for completed submissions
+      HookRegistry::register('Templates::Submission::SuppFile::AdditionalMetadata', array(&$this, 'suppFileAdditionalMetadata'));
       HookRegistry::register('suppfileform::initdata', array(&$this, 'suppFileFormInitData'));
       HookRegistry::register('suppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
       HookRegistry::register('suppfileform::execute', array(&$this, 'suppFileFormExecute'));
@@ -360,13 +363,13 @@ class DataversePlugin extends GenericPlugin {
   }
   
   /**
-   * Add Dataverse deposit options to suppfile form
-   * @param string $hookName
-   * @param array $args
+   * Hook callback: add data publication options to suppfile forms (for initial
+   * author submission & completed submissions)
    */
-  function addSuppFileOptions($hookName, $args) {
+  function suppFileAdditionalMetadata($hookName, $args) {
     $smarty =& $args[1];
     $output =& $args[2];
+/*    
     $journal =& Request::getJournal();
     
     // Show study details, if a study exists for this article
@@ -380,7 +383,8 @@ class DataversePlugin extends GenericPlugin {
                       '<a href="'. $study->getPersistentUri() .'">'. $study->getPersistentUri() .'</a>',
                       $study->getDataCitation()));
     }
-    $output .= $smarty->fetch($this->getTemplatePath() . 'suppFileOptions.tpl');
+*/
+    $output .= $smarty->fetch($this->getTemplatePath() . 'suppFileAdditionalMetadata.tpl');
     return false;
   }
   

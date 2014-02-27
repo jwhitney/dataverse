@@ -79,12 +79,16 @@
  <message key="plugins.generic.dataverse.notification.fileDeleted">The file has been removed from the submission's Dataverse study.</message> 
  <message key="plugins.generic.dataverse.notification.errorAddingFile">An error occurred removing the file from the submission's Dataverse study.</message>  
  <message key="plugins.generic.dataverse.notification.releaseDataverse">A study has been released in the journal's Dataverse. Please log in to the Dataverse Network at {$dvnUri} and release the Dataverse.</message>
+ 
  <!-- Suppfile form -->    
- <message key="plugins.generic.dataverse.suppFile.title">Dataverse</message>
- <message key="plugins.generic.dataverse.suppFile.description">Deposit supplementary file in a Dataverse study created for this submission.</message>
+ <message key="plugins.generic.dataverse.suppFile.title">Dataverse Plugin: Publish Data</message>
+ <message key="plugins.generic.dataverse.suppFile.description">Research data can be submitted for publication by depositing supplementary files in the journal's Dataverse or by supplying a citation to data already in a repository.</message>
+ <message key="plugins.generic.dataverse.suppFile.noDeposit"><![CDATA[Treat uploaded file as supplementary file. File <strong>will not</strong> be deposited in Dataverse.]]></message>
+ <message key="plugins.generic.dataverse.suppFile.depositDataverse"><![CDATA[Deposit file in Dataverse. Author accepts and agrees to Dataverse <a href="javascript:openWindow('{$dataverseTermsOfUseUrl}');">terms of use</a>.]]></message>
+ <message key="plugins.generic.dataverse.suppFile.externalCitation">Data to be published with this submission is already in a repository.</message> 
  <message key="plugins.generic.dataverse.suppFile.depositSuppFile">Deposit file</message>
  <message key="plugins.generic.dataverse.suppFile.noSuppFilesInDataverse">No supplementary files have been deposited in Dataverse yet.</message>
- <message key="plugins.generic.dataverse.suppFile.depositSuppFileDescription"><![CDATA[Accept <a href="javascript:openWindow('{$dataverseTermsOfUseUrl}');">Dataverse terms of use</a> and deposit supplementary file.]]></message> 
+
  
  <!-- Terms of use -->
  <message key="plugins.generic.dataverse.termsOfUse.title">Terms Of Use</message>      
