@@ -44,6 +44,7 @@ class DataversePlugin extends GenericPlugin {
       $this->import('classes.DataverseStudyDAO');
       $dataverseStudyDao = new DataverseStudyDAO($this->getName());
 			$returner =& DAORegistry::registerDAO('DataverseStudyDAO', $dataverseStudyDao);
+
       // Files associated with Dataverse studies
       $this->import('classes.DataverseFileDAO');      
       $dataverseFileDao = new DataverseFileDAO($this->getName());      
@@ -60,18 +61,33 @@ class DataversePlugin extends GenericPlugin {
       // Include data policy in About page
       HookRegistry::register('Templates::About::Index::Policies', array(&$this, 'addPolicyLinks'));
 
+      // Add data publication options to metadata form in submission step 3
+      HookRegistry::register('Templates::Author::Submit::AdditionalMetadata', array(&$this, 'articleAdditionalMetadata'));
+      HookRegistry::register('authorsubmitstep3form::initdata', array(&$this, 'articleMetadataFormInit'));
+      HookRegistry::register('authorsubmitstep3form::readuservars', array(&$this, 'articleMetadataFormReadUserVars'));
+      HookRegistry::register('authorsubmitstep3form::execute', array(&$this, 'articleMetadataFormExecute'));
+            
+      // Add data publication options to metadata form for completed submissions
+      HookRegistry::register('Templates::Submission::MetadataEdit::AdditionalMetadata', array(&$this, 'articleAdditionalMetadata'));      
+      HookRegistry::register('metadataform::initdata', array(&$this, 'articleMetadataFormInit'));            
+      HookRegistry::register('metadataform::readuservars', array(&$this, 'articleMetadataFormReadUserVars'));
+      HookRegistry::register('metadataform::execute', array(&$this, 'articleMetadataFormExecute'));      
+      
+      // Notify ArticleDAO of additional metadata fields
+			HookRegistry::register('articledao::getAdditionalFieldNames', array(&$this, 'articleMetadataFormFieldNames'));
+      
       // Add data publication options to author submission suppfile form: 
       HookRegistry::register('Templates::Author::Submit::SuppFile::AdditionalMetadata', array(&$this, 'suppFileAdditionalMetadata'));
-      
       HookRegistry::register('authorsubmitsuppfileform::initdata', array(&$this, 'suppFileFormInitData'));
       HookRegistry::register('authorsubmitsuppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
       HookRegistry::register('authorsubmitsuppfileform::execute', array(&$this, 'authorSuppFileFormExecute'));
       
-// Add Dataverse deposit options to suppfile form for completed submissions
+      // Add Dataverse deposit options to suppfile form for completed submissions
       HookRegistry::register('Templates::Submission::SuppFile::AdditionalMetadata', array(&$this, 'suppFileAdditionalMetadata'));
       HookRegistry::register('suppfileform::initdata', array(&$this, 'suppFileFormInitData'));
       HookRegistry::register('suppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
       HookRegistry::register('suppfileform::execute', array(&$this, 'suppFileFormExecute'));
+
       // Handle suppfile insertion: prevent duplicate insertion of a suppfile
       HookRegistry::register('suppfiledao::_insertsuppfile', array(&$this, 'handleSuppFileInsertion'));
       // Handle suppfile deletion: only necessary for completed submissions
@@ -360,6 +376,58 @@ class DataversePlugin extends GenericPlugin {
       $output .= '</a></li>';
     }
     return false;
+  }
+  
+  /**
+   * Hook callback: add data publication options to submission metadata forms
+   */
+  function articleAdditionalMetadata($hookName, $args) {
+    $smarty =& $args[1];
+    $output =& $args[2];
+    $output .= $smarty->fetch($this->getTemplatePath() . 'articleAdditionalMetadata.tpl');
+    return false;     
+  }
+  
+  /**
+   * Hook callback: initialize data publication fields added to submission
+   *  metadata forms
+   */
+  function articleMetadataFormInit($hookName, $args) {
+		$form =& $args[0];
+		$article =& $form->article;
+    $form->setData('externalDataCitation', $article->getLocalizedData('externalDataCitation'));
+    return false;
+  }
+  
+  /**
+   * Hook callback: read data publication fields added to submission metadata
+   * forms
+   */
+  function articleMetadataFormReadUserVars($hookName, $args) {
+		$vars =& $args[1];
+		$vars[] = 'externalDataCitation';
+		return false;    
+  }
+  
+  /**
+   * Hook callback: store data publication metadata added to submission metadata
+   * forms
+   */
+  function articleMetadataFormExecute($hookName, $args) {
+		$form =& $args[0];
+		$article =& $form->article;
+		$article->setData('externalDataCitation', $form->getData('externalDataCitation'));
+		return false;
+  }
+  
+  /**
+   * Hook callback: notify ArticleDAO of fields added to submission metadata
+   * forms
+   */
+  function articleMetadataFormFieldNames($hookName, $args) {
+		$fields =& $args[1];
+		$fields[] = 'externalDataCitation';
+		return false;    
   }
   
   /**

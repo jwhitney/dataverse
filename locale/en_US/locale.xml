@@ -80,7 +80,12 @@
  <message key="plugins.generic.dataverse.notification.errorAddingFile">An error occurred removing the file from the submission's Dataverse study.</message>  
  <message key="plugins.generic.dataverse.notification.releaseDataverse">A study has been released in the journal's Dataverse. Please log in to the Dataverse Network at {$dvnUri} and release the Dataverse.</message>
  
- <!-- Suppfile form -->    
+ <!-- Additional metadata: article form -->
+ <message key="plugins.generic.dataverse.submissionMetadata.title">Dataverse Plugin: Publish Data</message>
+ <message key="plugins.generic.dataverse.submissionMetadata.description">If this submission is to be published with research data that is already in a repository, please provide a data citation. Research data may also be submitted for publication by uploading supplementary files in step 4 of the submission process.</message>
+ <message key="plugins.generic.dataverse.submissionMetadata.externalDataCitation">Data citation</message> 
+  
+ <!-- Additional metadata: suppfile form -->    
  <message key="plugins.generic.dataverse.suppFile.title">Dataverse Plugin: Publish Data</message>
  <message key="plugins.generic.dataverse.suppFile.description">Research data can be submitted for publication by depositing supplementary files in the journal's Dataverse or by supplying a citation to data already in a repository.</message>
  <message key="plugins.generic.dataverse.suppFile.noDeposit"><![CDATA[Treat uploaded file as supplementary file. File <strong>will not</strong> be deposited in Dataverse.]]></message>
