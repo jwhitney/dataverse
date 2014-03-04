@@ -80,7 +80,7 @@ class DataversePlugin extends GenericPlugin {
       HookRegistry::register('Templates::Author::Submit::SuppFile::AdditionalMetadata', array(&$this, 'suppFileAdditionalMetadata'));
       HookRegistry::register('authorsubmitsuppfileform::initdata', array(&$this, 'suppFileFormInitData'));
       HookRegistry::register('authorsubmitsuppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
-      HookRegistry::register('authorsubmitsuppfileform::execute', array(&$this, 'authorSuppFileFormExecute'));
+      HookRegistry::register('authorsubmitsuppfileform::execute', array(&$this, 'authorSubmitSuppFileFormExecute'));
       
       // Add Dataverse deposit options to suppfile form for completed submissions
       HookRegistry::register('Templates::Submission::SuppFile::AdditionalMetadata', array(&$this, 'suppFileAdditionalMetadata'));
@@ -416,7 +416,7 @@ class DataversePlugin extends GenericPlugin {
   function articleMetadataFormExecute($hookName, $args) {
 		$form =& $args[0];
 		$article =& $form->article;
-		$article->setData('externalDataCitation', $form->getData('externalDataCitation'));
+		$article->setData('externalDataCitation', $form->getData('externalDataCitation'), $form->getFormLocale());
 		return false;
   }
   
@@ -437,11 +437,9 @@ class DataversePlugin extends GenericPlugin {
   function suppFileAdditionalMetadata($hookName, $args) {
     $smarty =& $args[1];
     $output =& $args[2];
-/*    
-    $journal =& Request::getJournal();
-    
+   
+/**
     // Show study details, if a study exists for this article
-    $articleId = $smarty->get_template_vars('articleId');    
     $dataverseStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
     $study = $dataverseStudyDao->getStudyBySubmissionId($articleId);
     if (isset($study)) {
@@ -457,68 +455,119 @@ class DataversePlugin extends GenericPlugin {
   }
   
   /**
-   * Initialize suppfile form with Dataverse-specific metadata
-   * @param type $hookName
-   * @param type $args
+   * Hook callback: initialize metadata fields added to suppfile form
    */
   function suppFileFormInitData($hookName, $args) {
     $form =& $args[0];
-    $dvFile = null;
-    if (isset($form->suppFile) && $form->suppFile->getId()) {
-      $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
-      $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), isset($form->article) ? $form->article->getId() : $form->articleId);
+
+    $journal =& Request::getJournal();    
+    $articleDao =& DAORegistry::getDAO('ArticleDAO');
+    $article =& $form->article;    
+    if (!isset($article)) {
+      $article = $articleDao->getArticle($form->articleId, $journal->getId());
     }
-    $form->setData('depositSuppFile', isset($dvFile));
+    // Add or edit external data citation field, if missed in previous step
+    $form->setData('externalDataCitation', $article->getLocalizedData('externalDataCitation'));
+    
+    // Set data publishing option for this suppfile:
+    // 'none'      -- supplementary file, not published (default)
+    // 'dataverse' -- deposit file in Dataverse and publish data citation with article
+    $publishData = 'none';
+
+    if (isset($form->suppFile) && $form->suppFile->getId()) {
+      // Check if uploaded file has been deposited in Dataverse
+      $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
+      $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $article->getId());
+      if (!is_null($dvFile)) { $publishData = 'dataverse'; }
+    }
+    $form->setData('publishData', $publishData);
     return false;
   }
 
   /**
-   * Read form data
-   * @param string $hookName
-   * @param array $args
+   * Hook callback: read values submitted in metadata fields added to suppfile form
    */
   function suppFileFormReadUserVars($hookName, $args) {
     $form =& $args[0];
     $vars =& $args[1];
-    // Add Dataverse-specific fields to list of form vars
-    $vars[] = 'depositSuppFile';
+    $vars[] = 'externalDataCitation';
+    $vars[] = 'publishData';
     return false;
   }
-  
+
   /**
-   * Handle Dataverse-specific options in suppfile forms for new submissions
-   * @param string $hookName
-   * @param array $args
+   * Hook callback: suppfile form execute for in-progress submissions
    */
-  function authorSuppFileFormExecute($hookName, $args) {
+  function authorSubmitSuppFileFormExecute($hookName, $args) {
     $form =& $args[0];
-    if ($form->suppFile && $form->suppFile->getId()) {
-      $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
-      // This is the initial submission: no study has been created, no files yet sent to Dataverse. 
-      $dvFile = $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $form->articleId);
-      if ($form->getData('depositSuppFile') && !isset($dvFile)) {
-        // File not yet marked for deposit 
-        $this->import('classes.DataverseFile');
-        $dvFile = new DataverseFile();
-        $dvFile->setSuppFileId($form->suppFile->getId());
-        $dvFile->setSubmissionId($form->articleId);
-        $dvFileDao->insertDataverseFile($dvFile);
-      }
-      if (!$form->getData('depositSuppFile') && isset($dvFile)) {
-        // File exists in database but not marked for deposit -- delete it
-        $dvFileDao->deleteDataverseFile($dvFile);        
-      }
+
+    // External data citation: field is article metadata, but provided in
+    // suppfile form as well, at point of data file deposit, to help support
+    // data publishing decisions.
+    $journal =& Request::getJournal();    
+    $articleDao =& DAORegistry::getDAO('ArticleDAO');
+    $article = $articleDao->getArticle($form->articleId, $journal->getId());
+    $article->setData('externalDataCitation', $form->getData('externalDataCitation'), $form->getFormLocale());
+    $articleDao->updateArticle($article);
+    
+    if (!isset($form->suppFile) || !$form->suppFile->getId()) {
+      // Suppfile metadata may exist but no file has been uploaded. 
+      return false;
     }
+    
+    $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
+    $dvFile = $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $form->articleId);      
+
+    switch ($form->getData('publishData')) {
+      case 'none':
+        /**
+         * Treat uploaded file as supplementary. If previously marked for 
+         * Dataverse deposit, unmark it.
+         */
+        if (isset($dvFile)) {
+          /** @todo warn user file will be removed from Dataverse */
+          $dvFileDao->deleteDataverseFile($dvFile);
+        }
+        break;
+
+      case 'dataverse':
+        /**
+         *  Mark file for deposit, if not marked already. File will be deposited
+         * in Dataverse when submission is completed or accepted for publication.
+         * @see handleAuthorSubmission, handleEditorDecision
+         */
+        if (!isset($dvFile)) {
+          $this->import('classes.DataverseFile');
+          $dvFile = new DataverseFile();
+          $dvFile->setSuppFileId($form->suppFile->getId());
+          $dvFile->setSubmissionId($form->articleId);
+          $dvFileDao->insertDataverseFile($dvFile);            
+        }
+        break;
+    }    
     return false;
   }
   
   /**
-   * Handle Dataverse-specific options in submitted suppfile form
-   * @param string $hookName
-   * @param array $args
+   * Hook callback: store data submitted in fields added to suppfile form.
    */
-  function suppFileFormExecute($hookName, $args) {  
+  function suppFileFormExecute($hookName, $args) {   
     $form =& $args[0];
+
+    $journal =& Request::getJournal();    
+    $articleDao =& DAORegistry::getDAO('ArticleDAO');
+    $article =& $form->article;    
+    if (!isset($article)) {
+      $article = $articleDao->getArticle($form->articleId, $journal->getId());
+    }    
+
+    // External data citation: field is article metadata, but provided in
+    // suppfile form as well, at point of data file deposit, to help support
+    // data publishing decisions.
+    $article->setData('externalDataCitation', $form->getData('externalDataCitation'), $form->getFormLocale());
+    $articleDao->updateArticle($article);
+
+    /** @todo review deposit workflow below here */
     
     // If $form->suppFile does not have an ID, it is a new suppfile.
     if (!$form->suppFile->getId()) {
@@ -582,7 +631,7 @@ class DataversePlugin extends GenericPlugin {
       $this->_sendNotification('plugins.generic.dataverse.notification.fileDeleted', NOTIFICATION_TYPE_SUCCESS);                
     }
   }
-  
+
   /**
    * Prevent re-insertion of suppfile inserted by SuppFileForm::execute callback
    * @param string $hookName

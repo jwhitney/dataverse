@@ -14,14 +14,15 @@
   <h3>{translate key="plugins.generic.dataverse.suppFile.title"}</h3>
   <p>{translate key="plugins.generic.dataverse.suppFile.description"}</p>
 
-  <input type="radio" name="dataPublishOpts" id="dataPublishOpts-1" value="1" checked="checked"/>
-  <label for="dataPublishOpts-1">{translate key="plugins.generic.dataverse.suppFile.noDeposit"}</label>
+  <input type="radio" name="publishData" id="publishData-none" value="none" {if $publishData eq "none"}checked="checked" {/if}/>
+  <label for="publishData-none">{translate key="plugins.generic.dataverse.suppFile.publishDataNone"}</label>
   <br/>
-  <input type="radio" name="dataPublishOpts" id="dataPublishOpts-2" value="2"/>
-  <label for="dataPublishOpts-2">{translate key="plugins.generic.dataverse.suppFile.depositDataverse" dataverseTermsOfUseUrl=$dataverseTermsOfUseUrl}</label>
+  <input type="radio" name="publishData" id="publishData-dataverse" value="dataverse" {if $publishData eq "dataverse"}checked="checked" {/if}/>
+  <label for="publishData-dataverse">{translate key="plugins.generic.dataverse.suppFile.publishDataDataverse" dataverseTermsOfUseUrl=$dataverseTermsOfUseUrl}</label>
   <br/>
-  <input type="radio" name="dataPublishOpts" id="dataPublishOpts-3" value="3"/>
-  <label for="dataPublishOpts-3">{translate key="plugins.generic.dataverse.suppFile.externalCitation"}</label>
+  <h4>{translate key="plugins.generic.dataverse.suppFile.externalDataCitation"}</h4>
+  <p>{translate key="plugins.generic.dataverse.suppFile.externalDataCitation.description"}</p>  
+  <textarea cols="60" rows="5" class="textArea" id="externalDataCitation" name="externalDataCitation">{$externalDataCitation|escape}</textarea>    
 </div>
- <div class="separator"></div>
+<div class="separator"></div>
  
