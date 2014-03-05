@@ -87,7 +87,7 @@ class DataversePlugin extends GenericPlugin {
       HookRegistry::register('suppfileform::initdata', array(&$this, 'suppFileFormInitData'));
       HookRegistry::register('suppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
       HookRegistry::register('suppfileform::execute', array(&$this, 'suppFileFormExecute'));
-
+      
       // Handle suppfile insertion: prevent duplicate insertion of a suppfile
       HookRegistry::register('suppfiledao::_insertsuppfile', array(&$this, 'handleSuppFileInsertion'));
       // Handle suppfile deletion: only necessary for completed submissions
@@ -549,87 +549,113 @@ class DataversePlugin extends GenericPlugin {
   }
   
   /**
-   * Hook callback: store data submitted in fields added to suppfile form.
+   * Hook callback: suppfile form execute for completed submissions
    */
   function suppFileFormExecute($hookName, $args) {   
     $form =& $args[0];
-
-    $journal =& Request::getJournal();    
     $articleDao =& DAORegistry::getDAO('ArticleDAO');
-    $article =& $form->article;    
-    if (!isset($article)) {
-      $article = $articleDao->getArticle($form->articleId, $journal->getId());
-    }    
-
-    // External data citation: field is article metadata, but provided in
+    $article =& $form->article;
+    
+    // External data citation: field is article metadata, but provided in 
     // suppfile form as well, at point of data file deposit, to help support
-    // data publishing decisions.
+    // data publishing decisions
     $article->setData('externalDataCitation', $form->getData('externalDataCitation'), $form->getFormLocale());
     $articleDao->updateArticle($article);
-
-    /** @todo review deposit workflow below here */
     
-    // If $form->suppFile does not have an ID, it is a new suppfile.
-    if (!$form->suppFile->getId()) {
-      $form->setSuppFileData($form->suppFile);
-      $suppFileDao =& DAORegistry::getDAO('SuppFileDAO');
-      $suppFileDao->insertSuppFile($form->suppFile);
-      $form->suppFileId = $form->suppFile->getId();
-      
-      // Reload $form->suppFile from DAO to populate parent class attributes
-      $form->suppFile =& $suppFileDao->getSuppFile($form->suppFileId, $form->article->getId());
-    }
-      
-    // $form->suppFile now has an ID but may not have a file ID: suppfile form
-    // can be submitted without uploading a file. 
-    if (!$form->suppFile->getFileId()) return false;
+    // Form executed for completed submissions. Draft studies are created on 
+    // submission completion. A study may or may not exist for this submission.
+    $dvStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
+    $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');    
+    
+    switch ($form->getData('publishData')) {
+      case 'none':
+        // Supplementary file: do not deposit. 
+        /** @todo warn users before removing files from studies */
+        if (!$form->suppFile->getId()) return false; // New suppfile: not in Dataverse
 
-    $dvStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');      
-    $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
-    if ($form->getData('depositSuppFile')) {
-      // If the file is already in Dataverse, may need to update study information
-      $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $form->article->getId());
-      if (isset($dvFile)) {
-        $study =& $dvStudyDao->getStudyBySubmissionId($form->article->getId());
-        $this->updateStudy($form->article, $study) ? $this->_sendNotification('plugins.generic.dataverse.notification.studyUpdated', NOTIFICATION_TYPE_SUCCESS) : 
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorUpdatingStudy', NOTIFICATION_TYPE_ERROR);
-        return true;
-      }
-      
-      // If a study does not exist for this submission, create one
-      $study =& $dvStudyDao->getStudyBySubmissionId($form->article->getId());
-      if (!isset($study)) { 
-        $study =& $this->createStudy($form->article);
-        if (isset($study)) {
-          $this->_sendNotification('plugins.generic.dataverse.notification.studyCreated', NOTIFICATION_TYPE_SUCCESS);
+        $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $article->getId());
+        if (!isset($dvFile)) return false; // Edited suppfile, but not in Dataverse
+          
+        if (!$this->deleteFile($dvFile)) {
+          $this->_sendNotification('plugins.generic.dataverse.notification.errorDeletingFile', NOTIFICATION_TYPE_ERROR);
+          return false;
+        }
+        /** @fixme move this to deleteFile() */
+        $dvFileDao->deleteDataverseFile($dvFile);
+        
+        // Deleting a file may affect study cataloguing information
+        $study =& $dvStudyDao->getStudyBySubmissionId($article->getId());
+        $this->updateStudy($article, $study);
+        $this->_sendNotification('plugins.generic.dataverse.notification.fileDeleted', NOTIFICATION_TYPE_SUCCESS);             
+        break;
+
+      case 'dataverse':
+        // Deposit file. If needed, insert/update suppfile on behalf of form
+        $suppFileDao =& DAORegistry::getDAO('SuppFileDAO');
+        if (!$form->suppFile->getId()) {
+          // Suppfile is new, but inserted in db after hook is called. Handle
+          // insertion here & prevent duplicates in handleSuppFileInsertion() callback
+          $form->setSuppFileData($form->suppFile);
+          $suppFileDao->insertSuppFile($form->suppFile);
+          $form->suppFileId = $form->suppFile->getId();
+          $form->suppFile =& $suppFileDao->getSuppFile($form->suppFileId, $article->getId());
         }
         else {
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorCreatingStudy', NOTIFICATION_TYPE_ERROR);
-          return false; /** @fixme notify, failed to create study */          
+          // Suppfile exists, but uploaded file may be new, replaced, or non-existent. 
+          // Hook called before suppfile object updated with details of uploaded file,
+          // so refresh suppfile object here. 
+          import('classes.file.ArticleFileManager');
+          $fileName = 'uploadSuppFile';                    
+          $articleFileManager = new ArticleFileManager($article->getId());
+          if ($articleFileManager->uploadedFileExists($fileName)) {
+            $fileId = $form->suppFile->getFileId();
+            if ($fileId != 0) {
+              $articleFileManager->uploadSuppFile($fileName, $fileId);
+            }
+            else {
+              $fileId = $articleFileManager->uploadSuppFile($fileName);  
+              $form->suppFile->setFileId($fileId);          
+            }
+          }
+          // Store form metadata. It may be used to update study cataloguing information.
+          $form->suppFile =& $suppFileDao->getSuppFile($form->suppFileId, $article->getId());
+          $form->setSuppFileData($form->suppFile);
+          $suppFileDao->updateSuppFile($form->suppFile);
         }
-      }
-      
-      // Study exists or has been created. Add suppfile to study
-      $dvFile =& $this->addFileToStudy($study, $form->suppFile);
-      isset($dvFile) ? $this->_sendNotification('plugins.generic.dataverse.notification.fileAdded', NOTIFICATION_TYPE_SUCCESS) : 
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorAddingFile', NOTIFICATION_TYPE_ERROR);
+        // If, at this point, there is no file id, there is nothing to deposit
+        /** @fixme add a form validator to prevent deposit-in-Dataverse-but-no-file */
+        if (!$form->suppFile->getFileId()) return false;     
+        
+        // Study may not exist, if this is the first file deposited
+        $study =& $dvStudyDao->getStudyBySubmissionId($article->getId());  
+        if (!isset($study)) {
+          $study =& $this->createStudy($article);
+          if (!isset($study)) {
+            $this->_sendNotification('plugins.generic.dataverse.notification.errorCreatingStudy', NOTIFICATION_TYPE_ERROR);
+            return false;
+          }
+          /** @fixme notification bomb. study created! file deposited! one's enough */
+          $this->_sendNotification('plugins.generic.dataverse.notification.studyCreated', NOTIFICATION_TYPE_SUCCESS);
+        }
+        
+        // File already in Dataverse?
+        $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $article->getId());        
+        if (isset($dvFile)) {
+          // File is already in Dataverse. Update study cataloging information
+          // with suppfile metadata. 
+          $this->updateStudy($article, $study) ? 
+            $this->_sendNotification('plugins.generic.dataverse.notification.studyUpdated', NOTIFICATION_TYPE_SUCCESS) : 
+            $this->_sendNotification('plugins.generic.dataverse.notification.errorUpdatingStudy', NOTIFICATION_TYPE_ERROR);
+        }
+        else {
+          // Add file to study
+          $this->addFileToStudy($study, $form->suppFile) ?
+            $this->_sendNotification('plugins.generic.dataverse.notification.fileAdded', NOTIFICATION_TYPE_SUCCESS) : 
+            $this->_sendNotification('plugins.generic.dataverse.notification.errorAddingFile', NOTIFICATION_TYPE_ERROR);          
+        }
+        break;
     }
-    else {
-      // Deposit is not checked. If file is not in Dataverse, do nothing.
-      $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $form->article->getId());
-      if (!isset($dvFile)) return false;
-      
-      // Otherwise, delete file from Dataverse and update article suppfile settings.
-      if (!$this->deleteFile($dvFile)) {
-        $this->_sendNotification('plugins.generic.dataverse.notification.errorDeletingFile', NOTIFICATION_TYPE_ERROR);
-        return false;
-      }
-      $dvFileDao->deleteDataverseFile($dvFile);
-      // Deleting a file may affect study cataloguing information & data citation
-      $study =& $dvStudyDao->getStudyBySubmissionId($dvFile->getSubmissionId());
-      $this->updateStudy($form->article, $study);      
-      $this->_sendNotification('plugins.generic.dataverse.notification.fileDeleted', NOTIFICATION_TYPE_SUCCESS);                
-    }
+    return false;
   }
 
   /**
