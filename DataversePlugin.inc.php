@@ -88,6 +88,10 @@ class DataversePlugin extends GenericPlugin {
       HookRegistry::register('suppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
       HookRegistry::register('suppfileform::execute', array(&$this, 'suppFileFormExecute'));
       
+      // Validate suppfile forms: warn if Dataverse deposit selected but no file uploaded
+      HookRegistry::register('authorsubmitsuppfileform::Constructor', array(&$this, 'suppFileFormConstructor'));
+      HookRegistry::register('suppfileform::Constructor', array(&$this, 'suppFileFormConstructor'));      
+      
       // Handle suppfile insertion: prevent duplicate insertion of a suppfile
       HookRegistry::register('suppfiledao::_insertsuppfile', array(&$this, 'handleSuppFileInsertion'));
       // Handle suppfile deletion: only necessary for completed submissions
@@ -452,6 +456,33 @@ class DataversePlugin extends GenericPlugin {
 */
     $output .= $smarty->fetch($this->getTemplatePath() . 'suppFileAdditionalMetadata.tpl');
     return false;
+  }
+  
+  /**
+   * Hook callback: suppfile form constructors: add validators
+   */
+  function suppFileFormConstructor($hookName, $args) {
+    $form =& $args[0];
+    $form->addCheck(new FormValidatorCustom($this, 'publishData', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.publishDataError', array(&$this, 'suppFileFormValidateDeposit'), array(&$form)));
+    return false;
+  }
+  
+  /**
+   * Custom form validator, suppfile forms: if Dataverse deposit selected, 
+   * verify file has been uploaded
+   */
+  function suppFileFormValidateDeposit($publishData, $form) {
+    if ($publishData == 'dataverse') {
+      // If suppfile exists & has a non-zero file ID, a file has been uploaded previously
+      if ($form->suppFile && $form->suppFile->getFileId()) return true;
+      
+      // If no file has been uploaded, return false
+      import('classes.file.ArticleFileManager');
+      $articleId = isset($form->article) ? $form->article->getId() : $form->articleId;
+      $articleFileManager = new ArticleFileManager($articleId);
+      if (!$articleFileManager->uploadedFileExists('uploadSuppFile')) return false;
+    }
+    return true;
   }
   
   /**
