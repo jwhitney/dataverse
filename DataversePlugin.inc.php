@@ -592,13 +592,12 @@ class DataversePlugin extends GenericPlugin {
     // Deleting the file may require an update to study metadata
     $dvStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
     $study =& $dvStudyDao->getStudyBySubmissionId($dvFile->getSubmissionId());
-    $articleDao =& DAORegistry::getDAO('ArticleDAO');
-    $journal =& Request::getJournal();    
-    $article =& $articleDao->getArticle($study->getSubmissionId(), $journal->getId(), true);
-    if (isset($study) && isset($article)) {
+    if (isset($study)) {
+      $articleDao =& DAORegistry::getDAO('ArticleDAO');
+      $journal =& Request::getJournal();    
+      $article =& $articleDao->getArticle($study->getSubmissionId(), $journal->getId(), true);
       $this->updateStudy($article, $study);
     }
-    
     if ($dvFileDeposited) $this->_sendNotification('plugins.generic.dataverse.notification.fileDeleted', NOTIFICATION_TYPE_SUCCESS);
     return false;
   }
