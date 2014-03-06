@@ -295,15 +295,22 @@ class DataversePlugin extends GenericPlugin {
       
     $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
     $study =& $dataverseStudyDao->getStudyBySubmissionId($submission->getId());
-    if (!isset($study)) return $output;
-    
+
+    $dataCitation = '';
+    if (isset($study)) {
+      $dataCitation = str_replace($study->getPersistentUri(), '<a href="'. $study->getPersistentUri() .'">'. $study->getPersistentUri() .'</a>', $study->getDataCitation()); 
+    }
+    else {
+      // There may be an external data citation
+      $dataCitation = $submission->getLocalizedData('externalDataCitation');
+    }
+    if (!$dataCitation) return $output;
+
     $index = strpos($output, '<td class="label">'. __('submission.submitter'));
     if ($index !== false) {
       $newOutput = substr($output,0,$index);
       $newOutput .= '<td class="label">'.  __('plugins.generic.dataverse.dataCitation') .'</td>';
-      $newOutput .= '<td class="value" colspan="2">';
-      $newOutput .= str_replace($study->getPersistentUri(), '<a href="'. $study->getPersistentUri() .'">'. $study->getPersistentUri() .'</a>', $study->getDataCitation());
-      $newOutput .= '</td></tr><tr>';
+      $newOutput .= '<td class="value" colspan="2">'. $dataCitation .'</td></tr><tr>';
       $newOutput .= substr($output, $index);
       $output =& $newOutput;
     }
@@ -325,13 +332,16 @@ class DataversePlugin extends GenericPlugin {
     
     $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
     $study =& $dataverseStudyDao->getStudyBySubmissionId($article->getId());
-    if (!isset($study)) return false;
-    
-    $templateMgr->assign('dataCitation', str_replace(
+    if (isset($study)) {
+      $templateMgr->assign('dataCitation', str_replace(
             $study->getPersistentUri(),
             '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
             $study->getDataCitation()));    
-
+    }
+    else {
+      // Article may have an external data citation
+      $templateMgr->assign('dataCitation', $article->getLocalizedData('externalDataCitation'));
+    }
     $output .= $templateMgr->fetch($this->getTemplatePath() . 'dataCitationArticle.tpl');
 		return false;
   }  
