@@ -336,12 +336,17 @@ class DataversePlugin extends GenericPlugin {
         $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');        
         $article =& $templateMgr->get_template_vars('article');
         $study =& $dataverseStudyDao->getStudyBySubmissionId($article->getId());
-        if (!isset($study)) return false;
-        
-        $templateMgr->assign('dataCitation', str_replace(
-                $study->getPersistentUri(),
-                '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
-                $study->getDataCitation()));
+        if (isset($study)) {
+          $dataCitation = str_replace(
+                  $study->getPersistentUri(),
+                  '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
+                  $study->getDataCitation());          
+        }
+        else {
+          // There may be an external citation
+          $dataCitation = $article->getLocalizedData('externalDataCitation');
+        }
+        $templateMgr->assign('dataCitation', $dataCitation);
 				$templateMgr->display($this->getTemplatePath() . 'dataCitationArticle.tpl', 'text/html', 'DataversePlugin::addArticleDataCitation');
 				break;
 		}
