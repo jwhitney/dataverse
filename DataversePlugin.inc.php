@@ -387,11 +387,12 @@ class DataversePlugin extends GenericPlugin {
   function suppFileAdditionalMetadata($hookName, $args) {
     $smarty =& $args[1];
     $output =& $args[2];
-   
-/**
-    // Show study details, if a study exists for this article
-    $dataverseStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
-    $study = $dataverseStudyDao->getStudyBySubmissionId($articleId);
+    $articleId = $smarty->get_template_vars('articleId');        
+
+    // Include Dataverse data citation, if a study exists for this submission
+    $dvStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
+    $study = $dvStudyDao->getStudyBySubmissionId($articleId);
+
     if (isset($study)) {
       $smarty->assign('dataCitation', 
               str_replace(
@@ -399,7 +400,6 @@ class DataversePlugin extends GenericPlugin {
                       '<a href="'. $study->getPersistentUri() .'">'. $study->getPersistentUri() .'</a>',
                       $study->getDataCitation()));
     }
-*/
     $output .= $smarty->fetch($this->getTemplatePath() . 'suppFileAdditionalMetadata.tpl');
     return false;
   }

@@ -20,6 +20,10 @@
   <input type="radio" name="publishData" id="publishData-dataverse" value="dataverse" {if $publishData eq "dataverse"}checked="checked" {/if}/>
   <label for="publishData-dataverse">{translate key="plugins.generic.dataverse.suppFile.publishDataDataverse" dataverseTermsOfUseUrl=$dataverseTermsOfUseUrl}</label>
   <br/>
+  {if $dataCitation}
+    <p style="margin-left: 25px;">{translate key="plugins.generic.dataverse.suppFile.dataCitationDescription"}</p>
+    <p style="margin-left: 25px;">{$dataCitation|strip_unsafe_html}</p>
+  {/if}
   <h4>{translate key="plugins.generic.dataverse.suppFile.externalDataCitation"}</h4>
   <p>{translate key="plugins.generic.dataverse.suppFile.externalDataCitation.description"}</p>  
   <textarea cols="60" rows="5" class="textArea" id="externalDataCitation" name="externalDataCitation">{$externalDataCitation|escape}</textarea>    
