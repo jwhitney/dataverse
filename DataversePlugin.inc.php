@@ -463,7 +463,8 @@ class DataversePlugin extends GenericPlugin {
    */
   function suppFileFormConstructor($hookName, $args) {
     $form =& $args[0];
-    $form->addCheck(new FormValidatorCustom($this, 'publishData', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.publishDataError', array(&$this, 'suppFileFormValidateDeposit'), array(&$form)));
+    $form->addCheck(new FormValidatorCustom($this, 'publishData', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.publishData.error', array(&$this, 'suppFileFormValidateDeposit'), array(&$form)));
+    $form->addCheck(new FormValidatorCustom($this, 'externalDataCitation', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.externalDataCitation.error', array(&$this, 'suppFileFormValidateCitations'), array(&$form))); 
     return false;
   }
   
@@ -481,6 +482,17 @@ class DataversePlugin extends GenericPlugin {
       $articleId = isset($form->article) ? $form->article->getId() : $form->articleId;
       $articleFileManager = new ArticleFileManager($articleId);
       if (!$articleFileManager->uploadedFileExists('uploadSuppFile')) return false;
+    }
+    return true;
+  }
+  
+  /**
+   * Custom form validator, suppfile forms: if Dataverse deposit selected *and*
+   * external citatin provided, ask author to pick one.
+   */
+  function suppFileFormValidateCitations($externalCitation, $form) {
+    if ($externalCitation && $form->getData('publishData') == 'dataverse') {
+      return false;
     }
     return true;
   }
