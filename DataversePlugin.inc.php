@@ -29,18 +29,20 @@ define('DATAVERSE_PLUGIN_RELEASE_ARTICLE_ACCEPTED',  0x01);
 define('DATAVERSE_PLUGIN_RELEASE_ARTICLE_PUBLISHED', 0x02);
 
 // Notification types
-define('NOTIFICATION_TYPE_DATAVERSE_UNRELEASED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001001);
-define('NOTIFICATION_TYPE_DATAVERSE_STUDY_RELEASED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001002);
-define('NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001003);
-define('NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001004);
-define('NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001005);
+define('NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED',  NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001001);
+define('NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED',  NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001002);
+define('NOTIFICATION_TYPE_DATAVERSE_FILE_ADDED',     NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001003);
+define('NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED',   NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001004);
+define('NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED',  NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001005);
+define('NOTIFICATION_TYPE_DATAVERSE_STUDY_RELEASED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001006);
+define('NOTIFICATION_TYPE_DATAVERSE_UNRELEASED',     NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001007);
 
 class DataversePlugin extends GenericPlugin {
 
 	/**
 	 * Called as a plugin is registered to the registry
 	 * @param $category String Name of category plugin was registered to
-     * @param $path String
+   * @param $path String
 	 * @return boolean True iff plugin initialized successfully; if false,
 	 * 	the plugin will not be registered.
 	 */
@@ -619,34 +621,32 @@ class DataversePlugin extends GenericPlugin {
         /** @fixme add a form validator to prevent deposit-in-Dataverse-but-no-file */
         if (!$form->suppFile->getFileId()) return false;     
         
+        /** @fixme clean up study create, update & move notifications. */
+        $user =& Request::getUser();
+        import('classes.notification.NotificationManager');
+        $notificationManager = new NotificationManager();
+        
         // Study may not exist, if this is the first file deposited
         $study =& $dvStudyDao->getStudyBySubmissionId($article->getId());  
         if (!isset($study)) {
           $study =& $this->createStudy($article);
-          $user =& Request::getUser();
-        
-          import('classes.notification.NotificationManager');
-          $notificationManager = new NotificationManager();
-          /** @fixme clean up study create, update & move notifications. */
           $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED : NOTIFICATION_TYPE_ERROR);          
         }
 
         if (!isset($study)) return false;
         
         // File already in Dataverse?
-        $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $article->getId());        
+        $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $article->getId());     
+
         if (isset($dvFile)) {
-          // File is already in Dataverse. Update study cataloging information
-          // with suppfile metadata. 
-          $this->updateStudy($article, $study) ? 
-            $this->_sendNotification('plugins.generic.dataverse.notification.studyUpdated', NOTIFICATION_TYPE_SUCCESS) : 
-            $this->_sendNotification('plugins.generic.dataverse.notification.errorUpdatingStudy', NOTIFICATION_TYPE_ERROR);
+          // File is already in Dataverse. Update study with suppfile metadata. 
+          $studyUpdated = $this->updateStudy($article, $study);
+          $notificationManager->createTrivialNotification($user->getId(), $studyUpdated ? NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED : NOTIFICATION_TYPE_ERROR);
         }
         else {
           // Add file to study
-          $this->addFileToStudy($study, $form->suppFile) ?
-            $this->_sendNotification('plugins.generic.dataverse.notification.fileAdded', NOTIFICATION_TYPE_SUCCESS) : 
-            $this->_sendNotification('plugins.generic.dataverse.notification.errorAddingFile', NOTIFICATION_TYPE_ERROR);          
+          $fileAdded = $this->addFileToStudy($study, $form->suppFile);
+          $notificationManager->createTrivialNotification($user->getId(), $fileAdded ? NOTIFICATION_TYPE_DATAVERSE_FILE_ADDED : NOTIFICATION_TYPE_ERROR);
         }
         break;
     }
@@ -757,8 +757,13 @@ class DataversePlugin extends GenericPlugin {
     
     // Update & notify
     $study =& $this->updateStudy($form->article, $study);
-    isset($study) ? $this->_sendNotification('plugins.generic.dataverse.notification.studyUpdated', NOTIFICATION_TYPE_SUCCESS) :
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorUpdatingStudy', NOTIFICATION_TYPE_ERROR);
+    
+    /** @fixme clean up study create, update & move notifications. */
+    $user =& Request::getUser();
+    import('classes.notification.NotificationManager');
+    $notificationManager = new NotificationManager();
+    $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED : NOTIFICATION_TYPE_ERROR);
+
     return false;
   }
   
@@ -1344,12 +1349,20 @@ class DataversePlugin extends GenericPlugin {
         $message = __('plugins.generic.dataverse.notification.error');
         break;
       
+      case NOTIFICATION_TYPE_DATAVERSE_FILE_ADDED:
+        $message = __('plugins.generic.dataverse.notification.fileAdded');
+        break;
+      
       case NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED:
         $message = __('plugins.generic.dataverse.notification.fileDeleted');
         break;
 
       case NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED:
         $message = __('plugins.generic.dataverse.notification.studyCreated');
+        break;
+      
+      case NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED:
+        $message = __('plugins.generic.dataverse.notification.studyUpdated');
         break;
       
       case NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED:
@@ -1378,8 +1391,6 @@ class DataversePlugin extends GenericPlugin {
   function _initSwordClient($options = array(CURLOPT_SSL_VERIFYPEER => FALSE)) {
     return new SWORDAPPClient($options);
   }
-  
-
 
   /**
    * Workaround to avoid using citation formation plugins. Returns formatted 
@@ -1405,36 +1416,6 @@ class DataversePlugin extends GenericPlugin {
     
     return $templateMgr->fetch($this->getTemplatePath() .'citation'. $citationFormat .'.tpl');
   }
-
-	/**
-	 * Add a notification.
-	 * @param $request Request
-	 * @param $message string An i18n key.
-	 * @param $notificationType integer One of the NOTIFICATION_TYPE_* constants.
-	 * @param $param string An additional parameter for the message.
-	 */
-	function _sendNotification($message, $notificationType, $param = null) {
-		static $notificationManager = null;
-
-		if (is_null($notificationManager)) {
-			import('classes.notification.NotificationManager');
-			$notificationManager = new NotificationManager();
-		}
-
-		if (!is_null($param)) {
-			$params = array('param' => $param);
-		} else {
-			$params = null;
-		}
-    
-    $request =& Application::getRequest();
-		$user =& $request->getUser();
-		$notificationManager->createTrivialNotification(
-			$user->getId(),
-			$notificationType,
-			array('contents' => __($message, $params))
-		);
-	} 
 }
 
 ?>
