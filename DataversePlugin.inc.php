@@ -33,6 +33,7 @@ define('NOTIFICATION_TYPE_DATAVERSE_UNRELEASED', NOTIFICATION_TYPE_PLUGIN_BASE +
 define('NOTIFICATION_TYPE_DATAVERSE_STUDY_RELEASED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001002);
 define('NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001003);
 define('NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001004);
+define('NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001005);
 
 class DataversePlugin extends GenericPlugin {
 
@@ -622,13 +623,15 @@ class DataversePlugin extends GenericPlugin {
         $study =& $dvStudyDao->getStudyBySubmissionId($article->getId());  
         if (!isset($study)) {
           $study =& $this->createStudy($article);
-          if (!isset($study)) {
-            $this->_sendNotification('plugins.generic.dataverse.notification.errorCreatingStudy', NOTIFICATION_TYPE_ERROR);
-            return false;
-          }
-          /** @fixme notification bomb. study created! file deposited! one's enough */
-          $this->_sendNotification('plugins.generic.dataverse.notification.studyCreated', NOTIFICATION_TYPE_SUCCESS);
+          $user =& Request::getUser();
+        
+          import('classes.notification.NotificationManager');
+          $notificationManager = new NotificationManager();
+          /** @fixme clean up study create, update & move notifications. */
+          $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED : NOTIFICATION_TYPE_ERROR);          
         }
+
+        if (!isset($study)) return false;
         
         // File already in Dataverse?
         $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $article->getId());        
@@ -718,9 +721,7 @@ class DataversePlugin extends GenericPlugin {
   }
   
   /**
-   * Callback is invoked when author completes submission. Create draft study
-   * if author has uploaded data files.
-   * @param string $hookName   * @param array $args
+   * Hook callback: if author has included data files with submission, create draft study
    */
   function handleAuthorSubmission($hookName, $args) {
     $step =& $args[0];
@@ -730,10 +731,14 @@ class DataversePlugin extends GenericPlugin {
       $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
       $dvFiles =& $dvFileDao->getDataverseFilesBySubmissionId($article->getId());
       if ($dvFiles) {
-        // Create a study for the new submission
+        // Create a study for the new submission. Notify user on success or failure.
         $study =& $this->createStudy($article, $dvFiles);
-        isset($study) ? $this->_sendNotification('plugins.generic.dataverse.notification.studyCreated', NOTIFICATION_TYPE_SUCCESS) : 
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorCreatingStudy', NOTIFICATION_TYPE_ERROR);
+        $user =& Request::getUser();
+        
+        import('classes.notification.NotificationManager');
+        $notificationManager = new NotificationManager();
+        /** @fixme clean up study create, update & move notifications. */
+        $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED : NOTIFICATION_TYPE_ERROR);
       }
     }
     return false;
@@ -867,7 +872,6 @@ class DataversePlugin extends GenericPlugin {
                     $collection->sac_collpolicy
                     );
             // Store DV terms of use as a fallback 
-            /** @fixme excessive */
             $this->updateSetting($journal->getId(), 'dvTermsOfUse', $dvTermsOfUse, 'string');
             break;
           }
@@ -1342,6 +1346,10 @@ class DataversePlugin extends GenericPlugin {
       
       case NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED:
         $message = __('plugins.generic.dataverse.notification.fileDeleted');
+        break;
+
+      case NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED:
+        $message = __('plugins.generic.dataverse.notification.studyCreated');
         break;
       
       case NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED:

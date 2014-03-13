@@ -66,8 +66,7 @@
  <message key="plugins.generic.dataverse.settings.studyReleaseArticlePublished">Article is published</message>
  
  <!-- Notifications -->    
- <message key="plugins.generic.dataverse.notification.studyCreated">A Dataverse study has been created for this submission.</message>
- <message key="plugins.generic.dataverse.notification.errorCreatingStudy">An error occurred while creating a Dataverse study for this submission.</message> 
+ <message key="plugins.generic.dataverse.notification.studyCreated">Submission data has been deposited in Dataverse.</message>
  <message key="plugins.generic.dataverse.notification.studyUpdated">Cataloguing information for this submission's Dataverse study has been updated.</message>
  <message key="plugins.generic.dataverse.notification.errorUpdatingStudy">An error occurred while updating cataloguing information for this submission's Dataverse study.</message> 
  <message key="plugins.generic.dataverse.notification.errorDeletingStudy">An error occurred deleting the submission's Dataverse study.</message> 
