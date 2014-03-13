@@ -31,6 +31,7 @@ define('DATAVERSE_PLUGIN_RELEASE_ARTICLE_PUBLISHED', 0x02);
 // Notification types
 define('NOTIFICATION_TYPE_DATAVERSE_UNRELEASED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001001);
 define('NOTIFICATION_TYPE_DATAVERSE_STUDY_RELEASED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001002);
+define('NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001003);
 
 class DataversePlugin extends GenericPlugin {
 
@@ -796,9 +797,7 @@ class DataversePlugin extends GenericPlugin {
       }
       if ($decision['decision'] == SUBMISSION_EDITOR_DECISION_DECLINE) {
         // Draft studies will be deleted; released studies will be deaccesioned
-        $this->deleteStudy($study) ? 
-          $this->_sendNotification('plugins.generic.dataverse.notification.studyDeleted', NOTIFICATION_TYPE_SUCCESS) :
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorDeletingStudy', NOTIFICATION_TYPE_ERROR);
+        $this->deleteStudy($study);
       }
     }
     return false;
@@ -836,9 +835,7 @@ class DataversePlugin extends GenericPlugin {
     $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
     $study =& $dataverseStudyDao->getStudyBySubmissionId($submission->getId());
     if (isset($study)) {
-        $this->deleteStudy($study) ? 
-          $this->_sendNotification('plugins.generic.dataverse.notification.studyDeleted', NOTIFICATION_TYPE_SUCCESS) :
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorDeletingStudy', NOTIFICATION_TYPE_ERROR);
+      $this->deleteStudy($study);
     }
     return false;    
   }
@@ -1282,14 +1279,24 @@ class DataversePlugin extends GenericPlugin {
                 $this->getSetting($journal->getId(), 'password'),                
                 ''); // on behalf of 
     
-    if ($response->sac_status == DATAVERSE_PLUGIN_HTTP_STATUS_NO_CONTENT) {
+    $studyDeleted = ($response->sac_status == DATAVERSE_PLUGIN_HTTP_STATUS_NO_CONTENT);
+    
+    // Notify on success or failure
+    import('classes.notification.NotificationManager');
+    $notificationManager = new NotificationManager();
+    $user =& Request::getUser();
+    
+    if ($studyDeleted) {
       $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
       $dvFileDao->deleteDataverseFilesByStudyId($study->getId());
       $dataverseStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
       $dataverseStudyDao->deleteStudy($study);
-      return true;
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED, $params);
     }
-    return false;
+    else {
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_ERROR);      
+    }
+    return $studyDeleted;
   }
   
   /**
@@ -1326,6 +1333,10 @@ class DataversePlugin extends GenericPlugin {
 		switch ($type) {
       case NOTIFICATION_TYPE_ERROR:
         $message = __('plugins.generic.dataverse.notification.error');
+        break;
+      
+      case NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED:
+        $message = __('plugins.generic.dataverse.notification.studyDeleted');
         break;
       
       case NOTIFICATION_TYPE_DATAVERSE_STUDY_RELEASED:

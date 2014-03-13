@@ -70,12 +70,11 @@
  <message key="plugins.generic.dataverse.notification.errorCreatingStudy">An error occurred while creating a Dataverse study for this submission.</message> 
  <message key="plugins.generic.dataverse.notification.studyUpdated">Cataloguing information for this submission's Dataverse study has been updated.</message>
  <message key="plugins.generic.dataverse.notification.errorUpdatingStudy">An error occurred while updating cataloguing information for this submission's Dataverse study.</message> 
- <message key="plugins.generic.dataverse.notification.studyDeleted">The submission's Dataverse study has been deleted.</message>
- <message key="plugins.generic.dataverse.notification.errorDeletingStudy">An error occurred deleting the submission's Dataverse study.</message> 
  <message key="plugins.generic.dataverse.notification.fileAdded">The file has been added to the submission's Dataverse study.</message> 
  <message key="plugins.generic.dataverse.notification.errorAddingFile">An error occurred while adding the file to the submission's Dataverse study.</message>  
  <message key="plugins.generic.dataverse.notification.fileDeleted">The file has been removed from the submission's Dataverse study.</message> 
  <message key="plugins.generic.dataverse.notification.errorAddingFile">An error occurred removing the file from the submission's Dataverse study.</message>  
+ <message key="plugins.generic.dataverse.notification.studyDeleted">Submission data has been removed from Dataverse.</message> 
  <message key="plugins.generic.dataverse.notification.releaseDataverse"><![CDATA[Data published in this journal's Dataverse is not accessible until the Dataverse is released. Please log in to the journal's Dataverse and release it.]]></message>
  <message key="plugins.generic.dataverse.notification.studyReleased"><![CDATA[<p>Submission data has been published in Dataverse:</p><p>{$dataCitation}</p>]]></message> 
  <message key="plugins.generic.dataverse.notification.error">An error occured updating this submission's data in Dataverse.</message>
