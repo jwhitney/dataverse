@@ -32,6 +32,7 @@ define('DATAVERSE_PLUGIN_RELEASE_ARTICLE_PUBLISHED', 0x02);
 define('NOTIFICATION_TYPE_DATAVERSE_UNRELEASED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001001);
 define('NOTIFICATION_TYPE_DATAVERSE_STUDY_RELEASED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001002);
 define('NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001003);
+define('NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001004);
 
 class DataversePlugin extends GenericPlugin {
 
@@ -567,23 +568,17 @@ class DataversePlugin extends GenericPlugin {
     switch ($form->getData('publishData')) {
       case 'none':
         // Supplementary file: do not deposit. 
-        /** @todo warn users before removing files from studies */
         if (!$form->suppFile->getId()) return false; // New suppfile: not in Dataverse
 
         $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $article->getId());
         if (!isset($dvFile)) return false; // Edited suppfile, but not in Dataverse
           
-        if (!$this->deleteFile($dvFile)) {
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorDeletingFile', NOTIFICATION_TYPE_ERROR);
-          return false;
-        }
-        /** @fixme move this to deleteFile() */
-        $dvFileDao->deleteDataverseFile($dvFile);
-        
+        // Remove the file from Dataverse
+        $this->deleteFile($dvFile);
+
         // Deleting a file may affect study cataloguing information
         $study =& $dvStudyDao->getStudyBySubmissionId($article->getId());
         $this->updateStudy($article, $study);
-        $this->_sendNotification('plugins.generic.dataverse.notification.fileDeleted', NOTIFICATION_TYPE_SUCCESS);             
         break;
 
       case 'dataverse':
@@ -680,22 +675,13 @@ class DataversePlugin extends GenericPlugin {
     $suppFileId = is_array($params) ? $params[0] : $params;
     $submissionId = is_array($params) ? $params[1] : '';
     
-    // Does a Dataverse file exist for this suppfile?
+    // Suppfile deposited in / marked for deposit in Dataverse?
     $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
     $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($suppFileId, $submissionId ? $submissionId : '');
-    if (!isset($dvFile)) return false;
+    if (!isset($dvFile)) return false; // nope. 
+    
+    $this->deleteFile($dvFile);
 
-    // If submission is incomplete, file will not yet be in Dataverse
-    $dvFileDeposited = false;
-    if ($dvFile->getContentSourceUri()) {
-      // File is in Dataverse. Set flag so we can notify later.
-      $dvFileDeposited = true;
-      if (!$this->deleteFile($dvFile)) {
-        $this->_sendNotification('plugins.generic.dataverse.notification.errorDeletingFile', NOTIFICATION_TYPE_ERROR);
-        return false;
-      }
-    }
-    $dvFileDao->deleteDataverseFile($dvFile);
     // Deleting the file may require an update to study metadata
     $dvStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
     $study =& $dvStudyDao->getStudyBySubmissionId($dvFile->getSubmissionId());
@@ -705,7 +691,6 @@ class DataversePlugin extends GenericPlugin {
       $article =& $articleDao->getArticle($study->getSubmissionId(), $journal->getId(), true);
       $this->updateStudy($article, $study);
     }
-    if ($dvFileDeposited) $this->_sendNotification('plugins.generic.dataverse.notification.fileDeleted', NOTIFICATION_TYPE_SUCCESS);
     return false;
   }
   
@@ -1291,7 +1276,7 @@ class DataversePlugin extends GenericPlugin {
       $dvFileDao->deleteDataverseFilesByStudyId($study->getId());
       $dataverseStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
       $dataverseStudyDao->deleteStudy($study);
-      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED, $params);
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED);
     }
     else {
       $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_ERROR);      
@@ -1305,17 +1290,37 @@ class DataversePlugin extends GenericPlugin {
    */
   function deleteFile(&$dvFile) {
     $journal =& Request::getJournal();
+    $user =& Request::getUser();
+    
+    if (!$dvFile->getContentSourceUri()) {
+      // File hasn't been deposited in Dataverse yet
+      $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');      
+      return $dvFileDao->deleteDataverseFile($dvFile);
+    }
+    
+    // File is in Dataverse. Remove from study & db.
     $client = $this->_initSwordClient();
     $response = $client->deleteResourceContent(
-              $dvFile->getContentSourceUri(),
-              $this->getSetting($journal->getId(), 'username'),
-              $this->getSetting($journal->getId(), 'password'),
-              '' // on behalf of
+            $dvFile->getContentSourceUri(),
+            $this->getSetting($journal->getId(), 'username'),
+            $this->getSetting($journal->getId(), 'password'),
+            '' // on behalf of
             );
-    
-    return ($response->sac_status == 204);
-  }
+    $fileDeleted = ($response->sac_status == 204);
 
+    import('classes.notification.NotificationManager');
+    $notificationManager = new NotificationManager();
+    
+    if ($fileDeleted) {
+      $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');      
+      $dvFileDao->deleteDataverseFile($dvFile);
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED);      
+    }
+    else {
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_ERROR);            
+    }
+    return $fileDeleted;
+  }
   
   /**
    * Hook callback: add content to custom notifications
@@ -1333,6 +1338,10 @@ class DataversePlugin extends GenericPlugin {
 		switch ($type) {
       case NOTIFICATION_TYPE_ERROR:
         $message = __('plugins.generic.dataverse.notification.error');
+        break;
+      
+      case NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED:
+        $message = __('plugins.generic.dataverse.notification.fileDeleted');
         break;
       
       case NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED:
