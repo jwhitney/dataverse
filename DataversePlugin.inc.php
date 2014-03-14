@@ -65,7 +65,7 @@ class DataversePlugin extends GenericPlugin {
 
         // Handler for public (?) access to Dataverse-related information (i.e., terms of Use)
         HookRegistry::register('LoadHandler', array(&$this, 'setupPublicHandler'));
-          // Add data citation to submissions, published articles, and reading tools  
+        // Add data citation to submissions, published articles, and reading tools  
         HookRegistry::register('TemplateManager::display', array(&$this, 'handleTemplateDisplay'));
         // Add data citation to article landing page
         HookRegistry::register('Templates::Article::MoreInfo', array(&$this, 'addDataCitationArticle'));
@@ -91,7 +91,11 @@ class DataversePlugin extends GenericPlugin {
 
         // Validate suppfile forms: warn if Dataverse deposit selected but no file uploaded
         HookRegistry::register('authorsubmitsuppfileform::Constructor', array(&$this, 'suppFileFormConstructor'));
-        HookRegistry::register('suppfileform::Constructor', array(&$this, 'suppFileFormConstructor'));      
+        HookRegistry::register('suppfileform::Constructor', array(&$this, 'suppFileFormConstructor'));  
+
+        // Metadata form: update cataloguing information. Prevent update if study locked.
+        HookRegistry::register('metadataform::Constructor', array(&$this, 'metadataFormConstructor'));
+        HookRegistry::register('metadataform::execute', array(&$this, 'metadataFormExecute'));
 
         // Handle suppfile insertion: prevent duplicate insertion of a suppfile
         HookRegistry::register('suppfiledao::_insertsuppfile', array(&$this, 'handleSuppFileInsertion'));
@@ -101,15 +105,14 @@ class DataversePlugin extends GenericPlugin {
         HookRegistry::register('authorsubmitstep4form::Constructor', array(&$this, 'addAuthorSubmitFormValidator'));
         // Create study for author submissions
         HookRegistry::register('Author::SubmitHandler::saveSubmit', array(&$this, 'handleAuthorSubmission'));
-        // Update cataloguing information when submission metadata is edited
-        HookRegistry::register('metadataform::execute', array(&$this, 'handleMetadataUpdate'));
         // Release or delete studies according to editor decision
         HookRegistry::register('SectionEditorAction::unsuitableSubmission', array(&$this, 'handleUnsuitableSubmission'));
         HookRegistry::register('SectionEditorAction::recordDecision', array(&$this, 'handleEditorDecision'));
         // Release studies on article publication
         HookRegistry::register('articledao::_updatearticle', array(&$this, 'handleArticleUpdate'));
+
         // Get content for plugin notifications
-        HookRegistry::register('NotificationManager::getNotificationContents', array(&$this, 'getNotificationContents'));      
+        HookRegistry::register('NotificationManager::getNotificationContents', array(&$this, 'getNotificationContents'));
       } // end if (plugin is enabled)
     }// end if (plugin registered successfully)
     return $success;
@@ -428,6 +431,48 @@ class DataversePlugin extends GenericPlugin {
   }
   
   /**
+   * Hook callback: metadata form constructors: add validators
+   */
+  function metadataFormConstructor($hookName, $args) {
+    $form =& $args[0];
+    $form->addCheck(new FormValidatorCustom($this, 'metadata', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.metadataForm.studyLocked', array(&$this, 'formValidateStudyState'), array(&$form)));
+    return false;
+  }  
+  
+  /**
+   * Hook callback: if submission has a Dataverse study, update cataloguing information
+   */
+  function metadataFormExecute($hookName, $args) {
+    $form =& $args[0];
+    $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
+    $study =& $dataverseStudyDao->getStudyBySubmissionId($form->article->getId());
+    if (!isset($study)) return false;
+    
+    // Update & notify
+    $study =& $this->updateStudy($form->article, $study);
+    
+    /** @fixme clean up study create, update & move notifications. */
+    $user =& Request::getUser();
+    import('classes.notification.NotificationManager');
+    $notificationManager = new NotificationManager();
+    $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED : NOTIFICATION_TYPE_ERROR);
+
+    return false;
+  }  
+  
+  /**
+   * Form validator: do not submit metadata, suppfile forms if associated study is locked
+   */
+  function formValidateStudyState($field, $form) {
+    $articleId = isset($form->article) ? $form->article->getId() : $form->articleId;    
+    $dvStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
+    $study = $dvStudyDao->getStudyBySubmissionId($articleId);    
+
+    // Prevent submission if study is locked
+    return $this->studyIsLocked($study) ? false : true;
+  }
+  
+  /**
    * Hook callback: notify ArticleDAO of external data citation field added to
    * suppfile forms
    */
@@ -452,6 +497,7 @@ class DataversePlugin extends GenericPlugin {
 
     if (isset($study)) {
       $smarty->assign('dataCitation', $study->getDataCitation());
+      $smarty->assign('studyLocked', $this->studyIsLocked($study));
     }
     $output .= $smarty->fetch($this->getTemplatePath() . 'suppFileAdditionalMetadata.tpl');
     return false;
@@ -463,6 +509,7 @@ class DataversePlugin extends GenericPlugin {
   function suppFileFormConstructor($hookName, $args) {
     $form =& $args[0];
     $form->addCheck(new FormValidatorCustom($this, 'publishData', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.publishData.error', array(&$this, 'suppFileFormValidateDeposit'), array(&$form)));
+    $form->addCheck(new FormValidatorCustom($this, 'publishData', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.studyLocked', array(&$this, 'formValidateStudyState'), array(&$form)));
     $form->addCheck(new FormValidatorCustom($this, 'externalDataCitation', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.externalDataCitation.error', array(&$this, 'suppFileFormValidateCitations'), array(&$form))); 
     return false;
   }
@@ -782,29 +829,6 @@ class DataversePlugin extends GenericPlugin {
         $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED : NOTIFICATION_TYPE_ERROR);
       }
     }
-    return false;
-  }
-  
-  /**
-   * If submission has a Dataverse study, update cataloguing information
-   * @param string $hookName
-   * @param array $args
-   */
-  function handleMetadataUpdate($hookName, $args) {
-    $form =& $args[0];
-    $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
-    $study =& $dataverseStudyDao->getStudyBySubmissionId($form->article->getId());
-    if (!isset($study)) return false;
-    
-    // Update & notify
-    $study =& $this->updateStudy($form->article, $study);
-    
-    /** @fixme clean up study create, update & move notifications. */
-    $user =& Request::getUser();
-    import('classes.notification.NotificationManager');
-    $notificationManager = new NotificationManager();
-    $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED : NOTIFICATION_TYPE_ERROR);
-
     return false;
   }
   
@@ -1431,6 +1455,31 @@ class DataversePlugin extends GenericPlugin {
    */
   function _initSwordClient($options = array(CURLOPT_SSL_VERIFYPEER => FALSE)) {
     return new SWORDAPPClient($options);
+  }
+  
+  /**
+   * Indicates whether study is locked for processing
+   * @return boolean
+   */
+  function studyIsLocked($study) {
+    $journal =& Request::getJournal();
+    $client = $this->_initSwordClient();    
+    $locked = false;    
+    $statement = $client->retrieveAtomStatement($study->getStatementUri(), $this->getSetting($journal->getId(), 'username'), $this->getSetting($journal->getId(), 'password'), '');
+    try {
+      $statementXml = new SimpleXMLElement($statement->sac_xml); 
+      foreach ($statementXml->category as $category) {
+        if ($category->attributes()->{'term'} == 'locked') {
+          $locked = $category->attributes()->{'term'} == 'true' ? true : false;
+          break;
+        }
+      }        
+    }
+    catch (Exception $e) {
+      $application =& PKPApplication::getApplication();
+      error_log($application->getName() .'\n '. $e->getMessage() .'\n In file: '. $e->getFile() . '\n At line: '. $e->getLine());
+    }      
+    return $locked;
   }
 
   /**
