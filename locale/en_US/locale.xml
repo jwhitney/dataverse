@@ -75,10 +75,8 @@
  <message key="plugins.generic.dataverse.notification.studyReleased"><![CDATA[<p>Submission data has been published in Dataverse:</p><p>{$dataCitation}</p>]]></message> 
  <message key="plugins.generic.dataverse.notification.error">An error occured updating this submission's data in Dataverse.</message>
  
- <!-- Additional metadata: article form -->
- <message key="plugins.generic.dataverse.submissionMetadata.title">Dataverse Plugin: Publish Data</message>
- <message key="plugins.generic.dataverse.submissionMetadata.description">If this submission is to be published with research data that is already in a repository, please provide a data citation. Research data may also be submitted for publication by uploading supplementary files in step 4 of the submission process.</message>
- <message key="plugins.generic.dataverse.submissionMetadata.externalDataCitation">Data citation</message> 
+ <!-- Article metadata for completed submissions: form errors -->
+ <message key="plugins.generic.dataverse.metadataForm.studyLocked">This submission's Dataverse study is locked for processing. Submission metadata can't be updated until processing has completed.</message> 
   
  <!-- Additional metadata: suppfile form -->    
  <message key="plugins.generic.dataverse.suppFile.title">Dataverse Plugin: Publish Data</message>

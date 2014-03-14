@@ -87,7 +87,11 @@ class DataversePlugin extends GenericPlugin {
       
       // Validate suppfile forms: warn if Dataverse deposit selected but no file uploaded
       HookRegistry::register('authorsubmitsuppfileform::Constructor', array(&$this, 'suppFileFormConstructor'));
-      HookRegistry::register('suppfileform::Constructor', array(&$this, 'suppFileFormConstructor'));      
+      HookRegistry::register('suppfileform::Constructor', array(&$this, 'suppFileFormConstructor'));  
+      
+      // Metadata form: update cataloguing information. Prevent update if study locked.
+      HookRegistry::register('metadataform::Constructor', array(&$this, 'metadataFormConstructor'));
+      HookRegistry::register('metadataform::execute', array(&$this, 'metadataFormExecute'));
       
       // Handle suppfile insertion: prevent duplicate insertion of a suppfile
       HookRegistry::register('suppfiledao::_insertsuppfile', array(&$this, 'handleSuppFileInsertion'));
@@ -97,8 +101,6 @@ class DataversePlugin extends GenericPlugin {
       HookRegistry::register('authorsubmitstep4form::Constructor', array(&$this, 'addAuthorSubmitFormValidator'));
       // Create study for author submissions
       HookRegistry::register('Author::SubmitHandler::saveSubmit', array(&$this, 'handleAuthorSubmission'));
-      // Update cataloguing information when submission metadata is edited
-      HookRegistry::register('metadataform::execute', array(&$this, 'handleMetadataUpdate'));
       // Release or delete studies according to editor decision
       HookRegistry::register('SectionEditorAction::unsuitableSubmission', array(&$this, 'handleUnsuitableSubmission'));
       HookRegistry::register('SectionEditorAction::recordDecision', array(&$this, 'handleEditorDecision'));
@@ -387,6 +389,48 @@ class DataversePlugin extends GenericPlugin {
   }
   
   /**
+   * Hook callback: metadata form constructors: add validators
+   */
+  function metadataFormConstructor($hookName, $args) {
+    $form =& $args[0];
+    $form->addCheck(new FormValidatorCustom($this, 'metadata', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.metadataForm.studyLocked', array(&$this, 'formValidateStudyState'), array(&$form)));
+    return false;
+  }  
+  
+  /**
+   * Hook callback: if submission has a Dataverse study, update cataloguing information
+   */
+  function metadataFormExecute($hookName, $args) {
+    $form =& $args[0];
+    $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
+    $study =& $dataverseStudyDao->getStudyBySubmissionId($form->article->getId());
+    if (!isset($study)) return false;
+    
+    // Update & notify
+    $study =& $this->updateStudy($form->article, $study);
+    
+    /** @fixme clean up study create, update & move notifications. */
+    $user =& Request::getUser();
+    import('classes.notification.NotificationManager');
+    $notificationManager = new NotificationManager();
+    $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED : NOTIFICATION_TYPE_ERROR);
+
+    return false;
+  }  
+  
+  /**
+   * Form validator: do not submit metadata, suppfile forms if associated study is locked
+   */
+  function formValidateStudyState($field, $form) {
+    $articleId = isset($form->article) ? $form->article->getId() : $form->articleId;    
+    $dvStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
+    $study = $dvStudyDao->getStudyBySubmissionId($articleId);    
+
+    // Prevent submission if study is locked
+    return $this->studyIsLocked($study) ? false : true;
+  }
+  
+  /**
    * Hook callback: notify ArticleDAO of external data citation field added to
    * suppfile forms
    */
@@ -423,7 +467,7 @@ class DataversePlugin extends GenericPlugin {
   function suppFileFormConstructor($hookName, $args) {
     $form =& $args[0];
     $form->addCheck(new FormValidatorCustom($this, 'publishData', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.publishData.error', array(&$this, 'suppFileFormValidateDeposit'), array(&$form)));
-    $form->addCheck(new FormValidatorCustom($this, 'publishData', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.studyLocked', array(&$this, 'suppFileFormValidateStudyState'), array(&$form)));
+    $form->addCheck(new FormValidatorCustom($this, 'publishData', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.studyLocked', array(&$this, 'formValidateStudyState'), array(&$form)));
     $form->addCheck(new FormValidatorCustom($this, 'externalDataCitation', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.externalDataCitation.error', array(&$this, 'suppFileFormValidateCitations'), array(&$form))); 
     return false;
   }
@@ -444,18 +488,6 @@ class DataversePlugin extends GenericPlugin {
       if (!$articleFileManager->uploadedFileExists('uploadSuppFile')) return false;
     }
     return true;
-  }
-  
-  /**
-   * Custom form validator, suppfile forms: verify study is not locked for processing.
-   */
-  function suppFileFormValidateStudyState($publishData, $form) {
-    $articleId = isset($form->article) ? $form->article->getId() : $form->articleId;    
-    $dvStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
-    $study = $dvStudyDao->getStudyBySubmissionId($articleId);    
-
-    // Prevent submission if study is locked
-    return $this->studyIsLocked($study) ? false : true;
   }
   
   /**
@@ -755,29 +787,6 @@ class DataversePlugin extends GenericPlugin {
         $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED : NOTIFICATION_TYPE_ERROR);
       }
     }
-    return false;
-  }
-  
-  /**
-   * If submission has a Dataverse study, update cataloguing information
-   * @param string $hookName
-   * @param array $args
-   */
-  function handleMetadataUpdate($hookName, $args) {
-    $form =& $args[0];
-    $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
-    $study =& $dataverseStudyDao->getStudyBySubmissionId($form->article->getId());
-    if (!isset($study)) return false;
-    
-    // Update & notify
-    $study =& $this->updateStudy($form->article, $study);
-    
-    /** @fixme clean up study create, update & move notifications. */
-    $user =& Request::getUser();
-    import('classes.notification.NotificationManager');
-    $notificationManager = new NotificationManager();
-    $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED : NOTIFICATION_TYPE_ERROR);
-
     return false;
   }
   
