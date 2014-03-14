@@ -28,12 +28,21 @@ define('DATAVERSE_PLUGIN_CITATION_FORMAT_APA', 'APA');
 define('DATAVERSE_PLUGIN_RELEASE_ARTICLE_ACCEPTED',  0x01);
 define('DATAVERSE_PLUGIN_RELEASE_ARTICLE_PUBLISHED', 0x02);
 
+// Notification types
+define('NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED',  NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001001);
+define('NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED',  NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001002);
+define('NOTIFICATION_TYPE_DATAVERSE_FILE_ADDED',     NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001003);
+define('NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED',   NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001004);
+define('NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED',  NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001005);
+define('NOTIFICATION_TYPE_DATAVERSE_STUDY_RELEASED', NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001006);
+define('NOTIFICATION_TYPE_DATAVERSE_UNRELEASED',     NOTIFICATION_TYPE_PLUGIN_BASE + 0x0001007);
+
 class DataversePlugin extends GenericPlugin {
 
 	/**
 	 * Called as a plugin is registered to the registry
 	 * @param $category String Name of category plugin was registered to
-     * @param $path String
+   * @param $path String
 	 * @return boolean True iff plugin initialized successfully; if false,
 	 * 	the plugin will not be registered.
 	 */
@@ -50,13 +59,13 @@ class DataversePlugin extends GenericPlugin {
         $returner =& DAORegistry::registerDAO('DataverseStudyDAO', $dataverseStudyDao);
 
         // Files associated with Dataverse studies
-        $this->import('classes.DataverseFileDAO');
-        $dataverseFileDao = new DataverseFileDAO($this->getName());
+        $this->import('classes.DataverseFileDAO');      
+        $dataverseFileDao = new DataverseFileDAO($this->getName());      
         $returner =& DAORegistry::registerDAO('DataverseFileDAO', $dataverseFileDao);
 
         // Handler for public (?) access to Dataverse-related information (i.e., terms of Use)
         HookRegistry::register('LoadHandler', array(&$this, 'setupPublicHandler'));
-        // Add data citation to submissions, published articles, and reading tools  
+          // Add data citation to submissions, published articles, and reading tools  
         HookRegistry::register('TemplateManager::display', array(&$this, 'handleTemplateDisplay'));
         // Add data citation to article landing page
         HookRegistry::register('Templates::Article::MoreInfo', array(&$this, 'addDataCitationArticle'));
@@ -64,26 +73,26 @@ class DataversePlugin extends GenericPlugin {
         HookRegistry::register('TinyMCEPlugin::getEnableFields', array(&$this, 'getTinyMCEEnabledFields'));
         // Include data policy in About page
         HookRegistry::register('Templates::About::Index::Policies', array(&$this, 'addPolicyLinks'));
-      
+
         // Add data publication options to author submission suppfile form: 
         HookRegistry::register('Templates::Author::Submit::SuppFile::AdditionalMetadata', array(&$this, 'suppFileAdditionalMetadata'));
         HookRegistry::register('authorsubmitsuppfileform::initdata', array(&$this, 'suppFileFormInitData'));
         HookRegistry::register('authorsubmitsuppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
         HookRegistry::register('authorsubmitsuppfileform::execute', array(&$this, 'authorSubmitSuppFileFormExecute'));
-      
+
         // Add Dataverse deposit options to suppfile form for completed submissions
         HookRegistry::register('Templates::Submission::SuppFile::AdditionalMetadata', array(&$this, 'suppFileAdditionalMetadata'));
         HookRegistry::register('suppfileform::initdata', array(&$this, 'suppFileFormInitData'));
         HookRegistry::register('suppfileform::readuservars', array(&$this, 'suppFileFormReadUserVars'));
         HookRegistry::register('suppfileform::execute', array(&$this, 'suppFileFormExecute'));
-      
+
         // Notify ArticleDAO of article metadata field (external data citation) in suppfile form
         HookRegistry::register('articledao::getAdditionalFieldNames', array(&$this, 'articleMetadataFormFieldNames'));
-      
+
         // Validate suppfile forms: warn if Dataverse deposit selected but no file uploaded
         HookRegistry::register('authorsubmitsuppfileform::Constructor', array(&$this, 'suppFileFormConstructor'));
         HookRegistry::register('suppfileform::Constructor', array(&$this, 'suppFileFormConstructor'));      
-      
+
         // Handle suppfile insertion: prevent duplicate insertion of a suppfile
         HookRegistry::register('suppfiledao::_insertsuppfile', array(&$this, 'handleSuppFileInsertion'));
         // Handle suppfile deletion: only necessary for completed submissions
@@ -99,6 +108,8 @@ class DataversePlugin extends GenericPlugin {
         HookRegistry::register('SectionEditorAction::recordDecision', array(&$this, 'handleEditorDecision'));
         // Release studies on article publication
         HookRegistry::register('articledao::_updatearticle', array(&$this, 'handleArticleUpdate'));
+        // Get content for plugin notifications
+        HookRegistry::register('NotificationManager::getNotificationContents', array(&$this, 'getNotificationContents'));      
       } // end if (plugin is enabled)
     }// end if (plugin registered successfully)
     return $success;
@@ -311,10 +322,7 @@ class DataversePlugin extends GenericPlugin {
         }
         $templateMgr->assign_by_ref('study', $study);        
         $templateMgr->assign('dvFileIndex', $dvFileIndex);
-        $templateMgr->assign('dataCitation', str_replace(
-                $study->getPersistentUri(),
-                '<a href="'. $study->getPersistentUri() .'" target="_blank">'. $study->getPersistentUri() .'</a>',
-                $study->getDataCitation()));        
+        $templateMgr->assign('dataCitation', $study->getDataCitation());
         $templateMgr->display($this->getTemplatePath() .'/'. $template);
         return true;
 		}
@@ -365,7 +373,7 @@ class DataversePlugin extends GenericPlugin {
 
     $dataCitation = '';
     if (isset($study)) {
-      $dataCitation = str_replace($study->getPersistentUri(), '<a href="'. $study->getPersistentUri() .'">'. $study->getPersistentUri() .'</a>', $study->getDataCitation()); 
+      $dataCitation = $study->getDataCitation();
     }
     else {
       // There may be an external data citation
@@ -443,11 +451,7 @@ class DataversePlugin extends GenericPlugin {
     $study = $dvStudyDao->getStudyBySubmissionId($articleId);
 
     if (isset($study)) {
-      $smarty->assign('dataCitation', 
-              str_replace(
-                      $study->getPersistentUri(),
-                      '<a href="'. $study->getPersistentUri() .'">'. $study->getPersistentUri() .'</a>',
-                      $study->getDataCitation()));
+      $smarty->assign('dataCitation', $study->getDataCitation());
     }
     $output .= $smarty->fetch($this->getTemplatePath() . 'suppFileAdditionalMetadata.tpl');
     return false;
@@ -582,7 +586,7 @@ class DataversePlugin extends GenericPlugin {
           $dvFileDao->insertDataverseFile($dvFile);            
         }
         break;
-    }    
+    }
     return false;
   }
   
@@ -608,23 +612,17 @@ class DataversePlugin extends GenericPlugin {
     switch ($form->getData('publishData')) {
       case 'none':
         // Supplementary file: do not deposit. 
-        /** @todo warn users before removing files from studies */
         if (!$form->suppFile->getId()) return false; // New suppfile: not in Dataverse
 
         $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $article->getId());
         if (!isset($dvFile)) return false; // Edited suppfile, but not in Dataverse
           
-        if (!$this->deleteFile($dvFile)) {
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorDeletingFile', NOTIFICATION_TYPE_ERROR);
-          return false;
-        }
-        /** @fixme move this to deleteFile() */
-        $dvFileDao->deleteDataverseFile($dvFile);
-        
+        // Remove the file from Dataverse
+        $this->deleteFile($dvFile);
+
         // Deleting a file may affect study cataloguing information
         $study =& $dvStudyDao->getStudyBySubmissionId($article->getId());
         $this->updateStudy($article, $study);
-        $this->_sendNotification('plugins.generic.dataverse.notification.fileDeleted', NOTIFICATION_TYPE_SUCCESS);             
         break;
 
       case 'dataverse':
@@ -664,32 +662,32 @@ class DataversePlugin extends GenericPlugin {
         /** @fixme add a form validator to prevent deposit-in-Dataverse-but-no-file */
         if (!$form->suppFile->getFileId()) return false;     
         
+        /** @fixme clean up study create, update & move notifications. */
+        $user =& Request::getUser();
+        import('classes.notification.NotificationManager');
+        $notificationManager = new NotificationManager();
+        
         // Study may not exist, if this is the first file deposited
         $study =& $dvStudyDao->getStudyBySubmissionId($article->getId());  
         if (!isset($study)) {
           $study =& $this->createStudy($article);
-          if (!isset($study)) {
-            $this->_sendNotification('plugins.generic.dataverse.notification.errorCreatingStudy', NOTIFICATION_TYPE_ERROR);
-            return false;
-          }
-          /** @fixme notification bomb. study created! file deposited! one's enough */
-          $this->_sendNotification('plugins.generic.dataverse.notification.studyCreated', NOTIFICATION_TYPE_SUCCESS);
+          $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED : NOTIFICATION_TYPE_ERROR);          
         }
+
+        if (!isset($study)) return false;
         
         // File already in Dataverse?
-        $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $article->getId());        
+        $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($form->suppFile->getId(), $article->getId());     
+
         if (isset($dvFile)) {
-          // File is already in Dataverse. Update study cataloging information
-          // with suppfile metadata. 
-          $this->updateStudy($article, $study) ? 
-            $this->_sendNotification('plugins.generic.dataverse.notification.studyUpdated', NOTIFICATION_TYPE_SUCCESS) : 
-            $this->_sendNotification('plugins.generic.dataverse.notification.errorUpdatingStudy', NOTIFICATION_TYPE_ERROR);
+          // File is already in Dataverse. Update study with suppfile metadata. 
+          $studyUpdated = $this->updateStudy($article, $study);
+          $notificationManager->createTrivialNotification($user->getId(), $studyUpdated ? NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED : NOTIFICATION_TYPE_ERROR);
         }
         else {
           // Add file to study
-          $this->addFileToStudy($study, $form->suppFile) ?
-            $this->_sendNotification('plugins.generic.dataverse.notification.fileAdded', NOTIFICATION_TYPE_SUCCESS) : 
-            $this->_sendNotification('plugins.generic.dataverse.notification.errorAddingFile', NOTIFICATION_TYPE_ERROR);          
+          $fileAdded = $this->addFileToStudy($study, $form->suppFile);
+          $notificationManager->createTrivialNotification($user->getId(), $fileAdded ? NOTIFICATION_TYPE_DATAVERSE_FILE_ADDED : NOTIFICATION_TYPE_ERROR);
         }
         break;
     }
@@ -721,22 +719,13 @@ class DataversePlugin extends GenericPlugin {
     $suppFileId = is_array($params) ? $params[0] : $params;
     $submissionId = is_array($params) ? $params[1] : '';
     
-    // Does a Dataverse file exist for this suppfile?
+    // Suppfile deposited in / marked for deposit in Dataverse?
     $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
     $dvFile =& $dvFileDao->getDataverseFileBySuppFileId($suppFileId, $submissionId ? $submissionId : '');
-    if (!isset($dvFile)) return false;
+    if (!isset($dvFile)) return false; // nope. 
+    
+    $this->deleteFile($dvFile);
 
-    // If submission is incomplete, file will not yet be in Dataverse
-    $dvFileDeposited = false;
-    if ($dvFile->getContentSourceUri()) {
-      // File is in Dataverse. Set flag so we can notify later.
-      $dvFileDeposited = true;
-      if (!$this->deleteFile($dvFile)) {
-        $this->_sendNotification('plugins.generic.dataverse.notification.errorDeletingFile', NOTIFICATION_TYPE_ERROR);
-        return false;
-      }
-    }
-    $dvFileDao->deleteDataverseFile($dvFile);
     // Deleting the file may require an update to study metadata
     $dvStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
     $study =& $dvStudyDao->getStudyBySubmissionId($dvFile->getSubmissionId());
@@ -746,7 +735,6 @@ class DataversePlugin extends GenericPlugin {
       $article =& $articleDao->getArticle($study->getSubmissionId(), $journal->getId(), true);
       $this->updateStudy($article, $study);
     }
-    if ($dvFileDeposited) $this->_sendNotification('plugins.generic.dataverse.notification.fileDeleted', NOTIFICATION_TYPE_SUCCESS);
     return false;
   }
   
@@ -774,9 +762,7 @@ class DataversePlugin extends GenericPlugin {
   }
   
   /**
-   * Callback is invoked when author completes submission. Create draft study
-   * if author has uploaded data files.
-   * @param string $hookName   * @param array $args
+   * Hook callback: if author has included data files with submission, create draft study
    */
   function handleAuthorSubmission($hookName, $args) {
     $step =& $args[0];
@@ -786,10 +772,14 @@ class DataversePlugin extends GenericPlugin {
       $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
       $dvFiles =& $dvFileDao->getDataverseFilesBySubmissionId($article->getId());
       if ($dvFiles) {
-        // Create a study for the new submission
+        // Create a study for the new submission. Notify user on success or failure.
         $study =& $this->createStudy($article, $dvFiles);
-        isset($study) ? $this->_sendNotification('plugins.generic.dataverse.notification.studyCreated', NOTIFICATION_TYPE_SUCCESS) : 
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorCreatingStudy', NOTIFICATION_TYPE_ERROR);
+        $user =& Request::getUser();
+        
+        import('classes.notification.NotificationManager');
+        $notificationManager = new NotificationManager();
+        /** @fixme clean up study create, update & move notifications. */
+        $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED : NOTIFICATION_TYPE_ERROR);
       }
     }
     return false;
@@ -808,8 +798,13 @@ class DataversePlugin extends GenericPlugin {
     
     // Update & notify
     $study =& $this->updateStudy($form->article, $study);
-    isset($study) ? $this->_sendNotification('plugins.generic.dataverse.notification.studyUpdated', NOTIFICATION_TYPE_SUCCESS) :
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorUpdatingStudy', NOTIFICATION_TYPE_ERROR);
+    
+    /** @fixme clean up study create, update & move notifications. */
+    $user =& Request::getUser();
+    import('classes.notification.NotificationManager');
+    $notificationManager = new NotificationManager();
+    $notificationManager->createTrivialNotification($user->getId(), isset($study) ? NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED : NOTIFICATION_TYPE_ERROR);
+
     return false;
   }
   
@@ -834,15 +829,11 @@ class DataversePlugin extends GenericPlugin {
     if (isset($study)) {
       // Editor decision on a submission with a draft study in Dataverse
       if ($decision['decision'] == SUBMISSION_EDITOR_DECISION_ACCEPT) {
-        $this->releaseStudy($study) ? 
-          $this->_sendNotification('plugins.generic.dataverse.notification.studyReleased', NOTIFICATION_TYPE_SUCCESS) :
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorReleasingStudy', NOTIFICATION_TYPE_ERROR);
+        $this->releaseStudy($study);
       }
       if ($decision['decision'] == SUBMISSION_EDITOR_DECISION_DECLINE) {
         // Draft studies will be deleted; released studies will be deaccesioned
-        $this->deleteStudy($study) ? 
-          $this->_sendNotification('plugins.generic.dataverse.notification.studyDeleted', NOTIFICATION_TYPE_SUCCESS) :
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorDeletingStudy', NOTIFICATION_TYPE_ERROR);
+        $this->deleteStudy($study);
       }
     }
     return false;
@@ -864,7 +855,6 @@ class DataversePlugin extends GenericPlugin {
       $dvStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
       $study =& $dvStudyDao->getStudyBySubmissionId($articleId);
       if (isset($study) && $status == STATUS_PUBLISHED) { 
-        /** @fixme notify here but  don't swamp w/ study-released notifications when an issue is published */
         $this->releaseStudy($study); 
       }
     }
@@ -881,9 +871,7 @@ class DataversePlugin extends GenericPlugin {
     $dataverseStudyDao =& DAORegistry::getDAO('DataverseStudyDAO');
     $study =& $dataverseStudyDao->getStudyBySubmissionId($submission->getId());
     if (isset($study)) {
-        $this->deleteStudy($study) ? 
-          $this->_sendNotification('plugins.generic.dataverse.notification.studyDeleted', NOTIFICATION_TYPE_SUCCESS) :
-          $this->_sendNotification('plugins.generic.dataverse.notification.errorDeletingStudy', NOTIFICATION_TYPE_ERROR);
+      $this->deleteStudy($study);
     }
     return false;    
   }
@@ -930,7 +918,6 @@ class DataversePlugin extends GenericPlugin {
                     $collection->sac_collpolicy
                     );
             // Store DV terms of use as a fallback 
-            /** @fixme excessive */
             $this->updateSetting($journal->getId(), 'dvTermsOfUse', $dvTermsOfUse, 'string');
             break;
           }
@@ -1241,11 +1228,39 @@ class DataversePlugin extends GenericPlugin {
   }
   
   /**
+   * Notify journal manangers if Dataverse has not been released
+   * @return boolean 
+   */
+  function dataverseIsReleased() {
+    $journal =& Request::getJournal();
+    $client = $this->_initSwordClient();    
+
+    $depositReciept = $client->retrieveDepositReceipt(
+        $this->getSetting($journal->getId(), 'dvUri'), 
+        $this->getSetting($journal->getId(), 'username'),
+        $this->getSetting($journal->getId(), 'password'), 
+        ''); // on behalf of
+
+    /** @fixme warn when we expect but don't receive a 200 response */
+    if ($depositReciept->sac_status != 200) return false;
+          
+    $depositReceiptXml = @new SimpleXMLElement($depositReciept->sac_xml);
+    $releasedNodes = $depositReceiptXml->children('http://purl.org/net/sword/terms/state')->dataverseHasBeenReleased;
+
+    if (!empty($releasedNodes)) {
+      $released = $releasedNodes[0];
+    }
+    return ($released == 'true');
+  }
+  
+  /**
    * Release draft study
    * @param DataverseStudy $study
    */
   function releaseStudy(&$study) {
     $journal =& Request::getJournal();              
+    $user =& Request::getUser();
+    
     $client = $this->_initSwordClient();    
     $response = $client->completeIncompleteDeposit(
             $study->getEditUri(),
@@ -1253,46 +1268,37 @@ class DataversePlugin extends GenericPlugin {
             $this->getSetting($journal->getId(), 'password'),   
             ''); // on behalf of
     
-    if ($response->sac_status == 200) {
-      // Ok! Study released. Notify journal manager if Dataverse not released.
-      $dvDepositReciept = $client->retrieveDepositReceipt(
-              $this->getSetting($journal->getId(), 'dvUri'), 
-              $this->getSetting($journal->getId(), 'username'),
-              $this->getSetting($journal->getId(), 'password'), 
-              ''); // on behalf of
-      if ($dvDepositReciept->sac_status == 200) {
-        $dvDepositReceiptXml = @new SimpleXMLElement($dvDepositReciept->sac_xml);
-        $dvReleasedNodes = $dvDepositReceiptXml->children('http://purl.org/net/sword/terms/state')->dataverseHasBeenReleased;
-        if (!empty($dvReleasedNodes) && $dvReleasedNodes[0] == 'false') {
-          // Notify the JM the DV must be released
-          $request =& Application::getRequest();          
-          import('classes.notification.NotificationManager');
-          $notificationManager = new NotificationManager();
-          $roleDao =& DAORegistry::getDAO('RoleDAO');
-          $journalManagers =& $roleDao->getUsersByRoleId(ROLE_ID_JOURNAL_MANAGER, $journal->getId());
-          $contents = __('plugins.generic.dataverse.notification.releaseDataverse', array('dvnUri' => $this->getSetting($journal->getId(), 'dvnUri')));
-          while ($journalManagers && !$journalManagers->eof()) {
-            $journalManager =& $journalManagers->next();
-            $notificationManager->createNotification(
-                  $request,
-                  $journalManager->getId(),
-                  NOTIFICATION_TYPE_ERROR,
-                  $journal->getId(),
-                  ASSOC_TYPE_JOURNAL,
-                  $journal->getId(),
-                  NOTIFICATION_LEVEL_NORMAL,
-                  array('contents' => $contents)
-                );
-            unset($journalManager);
-          } // end notifying JMs
-        } // end if (dv not released)
-      } // end if (deposit receipt retrieved)
-      // Study was released
-      return true;
+    $studyReleased = ($response->sac_status == DATAVERSE_PLUGIN_HTTP_STATUS_OK); 
+
+    // Notify on success or failure. Provide citation & link to study.
+    import('classes.notification.NotificationManager');
+    $notificationManager = new NotificationManager();
+
+    if ($studyReleased) {
+      $params = array('dataCitation' => $study->getDataCitation());
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_DATAVERSE_STUDY_RELEASED, $params);
     }
-    return false;
+    else {
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_ERROR);
+    }
+    
+    // Whether the study was released or not, notify JMs by email if Dataverse
+    // has not yet been released. Released studies are not accessible until
+    // the Dataverse has been released.
+    if (!$this->dataverseIsReleased()) {
+      $request =& Application::getRequest();                    
+      $roleDao =& DAORegistry::getDAO('RoleDAO');
+      $journalManagers =& $roleDao->getUsersByRoleId(ROLE_ID_JOURNAL_MANAGER, $journal->getId());
+      while ($journalManagers && !$journalManagers->eof()) {
+        $journalManager =& $journalManagers->next();
+        $notification = $notificationManager->createNotification($request, $journalManager->getId(), NOTIFICATION_TYPE_DATAVERSE_UNRELEASED, $journal->getId(), ASSOC_TYPE_JOURNAL, $journal->getId(), NOTIFICATION_LEVEL_NORMAL);
+        $notificationManager->sendNotificationEmail($request, $notification);
+        unset($journalManager);
+      } // end notifying JMs      
+    } // end if (study not released)
+    
+    return $studyReleased;
   }
-  
   
   /**
    * Delete draft study or deaccession released study
@@ -1308,14 +1314,24 @@ class DataversePlugin extends GenericPlugin {
                 $this->getSetting($journal->getId(), 'password'),                
                 ''); // on behalf of 
     
-    if ($response->sac_status == DATAVERSE_PLUGIN_HTTP_STATUS_NO_CONTENT) {
+    $studyDeleted = ($response->sac_status == DATAVERSE_PLUGIN_HTTP_STATUS_NO_CONTENT);
+    
+    // Notify on success or failure
+    import('classes.notification.NotificationManager');
+    $notificationManager = new NotificationManager();
+    $user =& Request::getUser();
+    
+    if ($studyDeleted) {
       $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');
       $dvFileDao->deleteDataverseFilesByStudyId($study->getId());
       $dataverseStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
       $dataverseStudyDao->deleteStudy($study);
-      return true;
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED);
     }
-    return false;
+    else {
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_ERROR);      
+    }
+    return $studyDeleted;
   }
   
   /**
@@ -1324,17 +1340,90 @@ class DataversePlugin extends GenericPlugin {
    */
   function deleteFile(&$dvFile) {
     $journal =& Request::getJournal();
+    $user =& Request::getUser();
+    
+    if (!$dvFile->getContentSourceUri()) {
+      // File hasn't been deposited in Dataverse yet
+      $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');      
+      return $dvFileDao->deleteDataverseFile($dvFile);
+    }
+    
+    // File is in Dataverse. Remove from study & db.
     $client = $this->_initSwordClient();
     $response = $client->deleteResourceContent(
-              $dvFile->getContentSourceUri(),
-              $this->getSetting($journal->getId(), 'username'),
-              $this->getSetting($journal->getId(), 'password'),
-              '' // on behalf of
+            $dvFile->getContentSourceUri(),
+            $this->getSetting($journal->getId(), 'username'),
+            $this->getSetting($journal->getId(), 'password'),
+            '' // on behalf of
             );
-    
-    return ($response->sac_status == 204);
-  }
+    $fileDeleted = ($response->sac_status == 204);
 
+    import('classes.notification.NotificationManager');
+    $notificationManager = new NotificationManager();
+    
+    if ($fileDeleted) {
+      $dvFileDao =& DAORegistry::getDAO('DataverseFileDAO');      
+      $dvFileDao->deleteDataverseFile($dvFile);
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED);      
+    }
+    else {
+      $notificationManager->createTrivialNotification($user->getId(), NOTIFICATION_TYPE_ERROR);            
+    }
+    return $fileDeleted;
+  }
+  
+  /**
+   * Hook callback: add content to custom notifications
+   */
+	function getNotificationContents($hookName, $args) {
+		$notification =& $args[0];
+		$message =& $args[1];
+    
+		$type = $notification->getType();
+		assert(isset($type));
+
+		import('classes.notification.NotificationManager');
+		$notificationManager = new NotificationManager();
+
+		switch ($type) {
+      case NOTIFICATION_TYPE_ERROR:
+        $message = __('plugins.generic.dataverse.notification.error');
+        break;
+      
+      case NOTIFICATION_TYPE_DATAVERSE_FILE_ADDED:
+        $message = __('plugins.generic.dataverse.notification.fileAdded');
+        break;
+      
+      case NOTIFICATION_TYPE_DATAVERSE_FILE_DELETED:
+        $message = __('plugins.generic.dataverse.notification.fileDeleted');
+        break;
+
+      case NOTIFICATION_TYPE_DATAVERSE_STUDY_CREATED:
+        $message = __('plugins.generic.dataverse.notification.studyCreated');
+        break;
+      
+      case NOTIFICATION_TYPE_DATAVERSE_STUDY_UPDATED:
+        $message = __('plugins.generic.dataverse.notification.studyUpdated');
+        break;
+      
+      case NOTIFICATION_TYPE_DATAVERSE_STUDY_DELETED:
+        $message = __('plugins.generic.dataverse.notification.studyDeleted');
+        break;
+      
+      case NOTIFICATION_TYPE_DATAVERSE_STUDY_RELEASED:
+				$notificationSettingsDao =& DAORegistry::getDAO('NotificationSettingsDAO');
+				$params = $notificationSettingsDao->getNotificationSettings($notification->getId());
+        $message = __('plugins.generic.dataverse.notification.studyReleased', $notificationManager->getParamsForCurrentLocale($params));
+        break;
+      
+			case NOTIFICATION_TYPE_DATAVERSE_UNRELEASED:
+				$notificationSettingsDao =& DAORegistry::getDAO('NotificationSettingsDAO');
+				$params = $notificationSettingsDao->getNotificationSettings($notification->getId());
+				$message = __('plugins.generic.dataverse.notification.releaseDataverse', $notificationManager->getParamsForCurrentLocale($params));
+				break;
+    }
+	}  
+  
   /**
    * Wrapper function for initializing SWORDv2 client with default cURL options
    * 
@@ -1343,8 +1432,6 @@ class DataversePlugin extends GenericPlugin {
   function _initSwordClient($options = array(CURLOPT_SSL_VERIFYPEER => FALSE)) {
     return new SWORDAPPClient($options);
   }
-  
-
 
   /**
    * Workaround to avoid using citation formation plugins. Returns formatted 
@@ -1370,36 +1457,6 @@ class DataversePlugin extends GenericPlugin {
     
     return $templateMgr->fetch($this->getTemplatePath() .'citation'. $citationFormat .'.tpl');
   }
-
-	/**
-	 * Add a notification.
-	 * @param $request Request
-	 * @param $message string An i18n key.
-	 * @param $notificationType integer One of the NOTIFICATION_TYPE_* constants.
-	 * @param $param string An additional parameter for the message.
-	 */
-	function _sendNotification($message, $notificationType, $param = null) {
-		static $notificationManager = null;
-
-		if (is_null($notificationManager)) {
-			import('classes.notification.NotificationManager');
-			$notificationManager = new NotificationManager();
-		}
-
-		if (!is_null($param)) {
-			$params = array('param' => $param);
-		} else {
-			$params = null;
-		}
-    
-    $request =& Application::getRequest();
-		$user =& $request->getUser();
-		$notificationManager->createTrivialNotification(
-			$user->getId(),
-			$notificationType,
-			array('contents' => __($message, $params))
-		);
-	}  
 }
 
 ?>
