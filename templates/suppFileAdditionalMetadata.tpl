@@ -23,6 +23,9 @@
   {if $dataCitation}
     <p style="margin-left: 25px;">{translate key="plugins.generic.dataverse.suppFile.dataCitationDescription"}</p>
     <p style="margin-left: 25px;">{$dataCitation|strip_unsafe_html}</p>
+    {if $studyLocked}
+      <p style="margin-left: 25px;" class="error">{translate key="plugins.generic.dataverse.suppFile.studyLocked"}</p>
+    {/if}
   {/if}
   <h4>{translate key="plugins.generic.dataverse.suppFile.externalDataCitation"}</h4>
   <p>{translate key="plugins.generic.dataverse.suppFile.externalDataCitation.description"}</p>  

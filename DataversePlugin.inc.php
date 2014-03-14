@@ -405,12 +405,13 @@ class DataversePlugin extends GenericPlugin {
     $output =& $args[2];
     $articleId = $smarty->get_template_vars('articleId');        
 
-    // Include Dataverse data citation, if a study exists for this submission
+    // Include Dataverse data citation, if a study exists for this submission.
     $dvStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
     $study = $dvStudyDao->getStudyBySubmissionId($articleId);
 
     if (isset($study)) {
       $smarty->assign('dataCitation', $study->getDataCitation());
+      $smarty->assign('studyLocked', $this->studyIsLocked($study));
     }
     $output .= $smarty->fetch($this->getTemplatePath() . 'suppFileAdditionalMetadata.tpl');
     return false;
@@ -422,6 +423,7 @@ class DataversePlugin extends GenericPlugin {
   function suppFileFormConstructor($hookName, $args) {
     $form =& $args[0];
     $form->addCheck(new FormValidatorCustom($this, 'publishData', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.publishData.error', array(&$this, 'suppFileFormValidateDeposit'), array(&$form)));
+    $form->addCheck(new FormValidatorCustom($this, 'publishData', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.studyLocked', array(&$this, 'suppFileFormValidateStudyState'), array(&$form)));
     $form->addCheck(new FormValidatorCustom($this, 'externalDataCitation', FORM_VALIDATOR_REQUIRED_VALUE, 'plugins.generic.dataverse.suppFile.externalDataCitation.error', array(&$this, 'suppFileFormValidateCitations'), array(&$form))); 
     return false;
   }
@@ -442,6 +444,18 @@ class DataversePlugin extends GenericPlugin {
       if (!$articleFileManager->uploadedFileExists('uploadSuppFile')) return false;
     }
     return true;
+  }
+  
+  /**
+   * Custom form validator, suppfile forms: verify study is not locked for processing.
+   */
+  function suppFileFormValidateStudyState($publishData, $form) {
+    $articleId = isset($form->article) ? $form->article->getId() : $form->articleId;    
+    $dvStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
+    $study = $dvStudyDao->getStudyBySubmissionId($articleId);    
+
+    // Prevent submission if study is locked
+    return $this->studyIsLocked($study) ? false : true;
   }
   
   /**
@@ -1390,6 +1404,31 @@ class DataversePlugin extends GenericPlugin {
    */
   function _initSwordClient($options = array(CURLOPT_SSL_VERIFYPEER => FALSE)) {
     return new SWORDAPPClient($options);
+  }
+  
+  /**
+   * Indicates whether study is locked for processing
+   * @return boolean
+   */
+  function studyIsLocked($study) {
+    $journal =& Request::getJournal();
+    $client = $this->_initSwordClient();    
+    $locked = false;    
+    $statement = $client->retrieveAtomStatement($study->getStatementUri(), $this->getSetting($journal->getId(), 'username'), $this->getSetting($journal->getId(), 'password'), '');
+    try {
+      $statementXml = new SimpleXMLElement($statement->sac_xml); 
+      foreach ($statementXml->category as $category) {
+        if ($category->attributes()->{'term'} == 'locked') {
+          $locked = $category->attributes()->{'term'} == 'true' ? true : false;
+          break;
+        }
+      }        
+    }
+    catch (Exception $e) {
+      $application =& PKPApplication::getApplication();
+      error_log($application->getName() .'\n '. $e->getMessage() .'\n In file: '. $e->getFile() . '\n At line: '. $e->getLine());
+    }      
+    return $locked;
   }
 
   /**
