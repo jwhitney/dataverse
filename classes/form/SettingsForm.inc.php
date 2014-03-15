@@ -66,11 +66,18 @@ class SettingsForm extends Form {
    */
   function initData() {
     $plugin =& $this->_plugin;
+    $journal =& Request::getJournal();
 
-    // Initialize from plugin settings
-    foreach (array_keys($this->_getFormFields()) as $field) {
-      $this->setData($field, $plugin->getSetting($this->_journalId, $field));
-    }
+    // Populate form with plugin settings or default values
+    $this->setData('dataAvailability', 
+            $plugin->getSetting($journal->getId(), 'dataAvailability') ? 
+            $plugin->getSetting($journal->getId(), 'dataAvailability') : 
+           __('plugins.generic.dataverse.settings.default.dataAvailabilityPolicy', array('journal' => $journal->getLocalizedTitle()))
+          );
+
+    $this->setData('fetchTermsOfUse', $journal->getId(), 'fetchTermsOfUse');
+    $this->setData('termsOfUse', $journal->getId(), 'termsOfUse');
+    $this->setData('requireData', $journal->getId(), 'requireData');
     
     // Get citation formats
     $this->setData('citationFormats', $this->_citationFormats);
@@ -85,7 +92,6 @@ class SettingsForm extends Form {
     if (isset($pubIdPlugin) && array_key_exists($pubIdPlugin, $pubIdTypes)) {
       $this->setData('pubIdPlugin', $pubIdPlugin);
     } 
-    
 
     $this->setData('studyReleaseOptions', $this->_studyReleaseOptions);
     $studyRelease = $this->_plugin->getSetting($this->_journalId, 'studyRelease');
@@ -182,5 +188,4 @@ class SettingsForm extends Form {
     );
     return $formFields;
   }  
-
 }

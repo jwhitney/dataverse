@@ -64,7 +64,10 @@
  <message key="plugins.generic.dataverse.settings.studyRelease">Release draft studies</message>  
  <message key="plugins.generic.dataverse.settings.studyReleaseSubmissionAccepted">Editor accepts submission</message>   
  <message key="plugins.generic.dataverse.settings.studyReleaseArticlePublished">Article is published</message>
- 
+
+ <!--  Settings: default values -->
+ <message key="plugins.generic.dataverse.settings.default.dataAvailabilityPolicy"><![CDATA[{$journal} requires, as a condition for publication, that data supporting the results in the  paper should be archived in an appropriate public archive. {$journal} recommends the <a href="http://thedata.harvard.edu/">Harvard Dataverse</a>, which is free and open to all researchers worldwide to share, cite, reuse and archive research data. Data are important products of the scientific enterprise, and they should be preserved and usable for decades in the future. Authors may elect to have the data publicly available at time of publication. Exceptions may be granted at the discretion of the editor, especially for sensitive information such as human subject data or the location of endangered species. Any exceptions should be documented in a statement in the public article. (Adapted from <a href="http://datadryad.org/pages/jdap">Joint Data Archiving Policy</a> (JDAP)).]]></message> 
+
  <!-- Notifications -->    
  <message key="plugins.generic.dataverse.notification.studyCreated">Submission data has been deposited in Dataverse.</message>
  <message key="plugins.generic.dataverse.notification.studyUpdated">Submission data has been updated in Dataverse.</message>

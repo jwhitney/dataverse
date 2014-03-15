@@ -29,7 +29,7 @@
 
     <h4>{translate key="plugins.generic.dataverse.settings.dataAvailabilityPolicy"}</h4>
     <p>{translate key="plugins.generic.dataverse.settings.dataAvailabilityPolicyDescription"}</p>
-    <textarea name="dataAvailability" id="dataAvailability" rows="5" cols="40" class="textArea richContent">{$dataAvailability|escape}</textarea>
+    <textarea name="dataAvailability" id="dataAvailability" rows="12" cols="80" class="textArea richContent">{$dataAvailability|escape}</textarea>
     
     <h4>{translate key="about.sectionPolicies"}</h4>
     <p>{translate key="plugins.generic.dataverse.settings.sectionPoliciesDescription"}</p>
