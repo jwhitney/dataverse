@@ -468,6 +468,9 @@ class DataversePlugin extends GenericPlugin {
     $dvStudyDao = DAORegistry::getDAO('DataverseStudyDAO');
     $study = $dvStudyDao->getStudyBySubmissionId($articleId);    
 
+    // No study for this submission
+    if (!isset($study)) return true;
+
     // Prevent submission if study is locked
     return $this->studyIsLocked($study) ? false : true;
   }
