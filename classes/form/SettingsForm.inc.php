@@ -112,6 +112,7 @@ class SettingsForm extends Form {
 	 * @see Form::fetch()
 	 */
 	function fetch(&$request, $template = null, $display = false) {
+    $journal =& Request::getJournal();
 		$sectionDao =& DAORegistry::getDAO('SectionDAO');
 		$sections =& $sectionDao->getJournalSections($this->_journalId);
     
@@ -120,6 +121,13 @@ class SettingsForm extends Form {
     $templateMgr->assign('citationFormats', $this->_citationFormats);
     $templateMgr->assign('pubIdTypes', $this->_pubIdTypes); 
     $templateMgr->assign('studyReleaseOptions', $this->_studyReleaseOptions);
+    
+    /** @fixme use language from OJS field instructions */
+    $templateMgr->assign('authorGuidelinesContent',     __('plugins.generic.dataverse.settings.default.authorGuidelines', array('journal' => $journal->getLocalizedTitle())));
+    $templateMgr->assign('checklistContent',            __('plugins.generic.dataverse.settings.default.checklist', array('journal' => $journal->getLocalizedTitle())));    
+    $templateMgr->assign('reviewPolicyContent',         __('plugins.generic.dataverse.settings.default.reviewPolicy'));
+    $templateMgr->assign('reviewGuidelinesContent',     __('plugins.generic.dataverse.settings.default.reviewGuidelines'));    
+    $templateMgr->assign('copyeditInstructionsContent', __('plugins.generic.dataverse.settings.default.copyeditInstructions'));
     
 		parent::fetch($request, $template, $display);
 	}  

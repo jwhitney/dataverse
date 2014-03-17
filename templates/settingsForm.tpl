@@ -39,20 +39,62 @@
       {/foreach}
     </ul>
     
-    <h4>{translate key="plugins.generic.dataverse.settings.submissionAndCitationGuidelines"}</h4>
-    <p>{translate key="plugins.generic.dataverse.settings.submissionAndCitationGuidelinesDescription"}</p>
-    <ul class="plain">
-      <li>&#187; <a href="{url op='setup' path='3' anchor='authorGuidelinesInfo'}" target="_blank">{translate key="about.authorGuidelines"}</a></li>
-      <li>&#187; <a href="{url op='setup' path='3' anchor='submissionPreparationChecklist'}" target="_blank">{translate key="about.submissionPreparationChecklist"}</a></li>
-    </ul>
+`   <h4>{translate key="about.authorGuidelines"}</h4>
+    <p>Edit <a href="{url op='setup' path='3' anchor='authorGuidelinesInfo'}" target="_blank">{translate key="about.authorGuidelines"}</a> to include data submission and citation guidelines.</p>
+    <div id="authorGuidelinesWrapper">
+      {include file="controllers/extrasOnDemand.tpl"
+			  id="authorGuidelinesExtras"
+  			widgetWrapper="#authorGuidelinesWrapper"
+   			moreDetailsText="plugins.generic.dataverse.settings.default.authorGuidelines.extras"
+   			moreDetailsLabel="plugins.generic.dataverse.settings.default.authorGuidelines.extras.label"
+  			extraContent=$authorGuidelinesContent}      
+    </div>
     
-    <h4>{translate key="plugins.generic.dataverse.settings.dataReviewGuidelines"}</h4>
-    <p>{translate key="plugins.generic.dataverse.settings.dataReviewGuidelinesDescription"}</p>
-    <ul class="plain">
-      <li>&#187; <a href="{url op='setup' path='2' anchor='peerReviewDescription'}" target="_blank">{translate key="manager.setup.reviewPolicy"}</a></li>
-      <li>&#187; <a href="{url op='setup' path='2' anchor='reviewGuidelinesInfo'}" target="_blank">{translate key="manager.setup.reviewGuidelines"}</a></li>
-      <li>&#187; <a href="{url op='setup' path='4' anchor='copyeditInstructionsSection'}" target="_blank">{translate key="manager.setup.copyeditInstructions"}</a></li>
-    </ul>
+    <h4>{translate key="about.submissionPreparationChecklist"}</h4>
+    <p>Edit <a href="{url op='setup' path='3' anchor='submissionPreparationChecklist'}" target="_blank">{translate key="about.submissionPreparationChecklist"}</a> 
+       to help authors comply with data submission and citation guidelines.</p>
+    <div id="checklistWrapper">
+      {include file="controllers/extrasOnDemand.tpl"
+			  id="checklistExtras"
+  			widgetWrapper="#checklistWrapper"
+   			moreDetailsText="plugins.generic.dataverse.settings.default.checklist.extras"
+   			moreDetailsLabel="plugins.generic.dataverse.settings.default.checklist.extras.label"
+  			extraContent=$checklistContent}
+    </div>
+    
+    <h4>{translate key="manager.setup.reviewPolicy"}</h4>
+    <p>Edit <a href="{url op='setup' path='2' anchor='peerReviewDescription'}" target="_blank">{translate key="manager.setup.reviewPolicy"}</a> to address datasets.</p>
+    <div id="reviewPolicyWrapper">
+      {include file="controllers/extrasOnDemand.tpl" 
+               id="reviewPolicyExtras" 
+               widgetWrapper="#reviewPolicyWrapper" 
+               moreDetailsText="plugins.generic.dataverse.settings.default.reviewPolicy.extras" 
+               moreDetailsLabel="plugins.generic.dataverse.settings.default.reviewPolicy.extras.label" 
+               extraContent=$reviewPolicyContent}
+    </div>
+    
+    <h4>{translate key="manager.setup.reviewGuidelines"}</h4>
+    <p>Edit <a href="{url op='setup' path='2' anchor='reviewGuidelinesInfo'}" target="_blank">{translate key="manager.setup.reviewGuidelines"}</a> to include instructions for reviewing datasets.</p>
+    <div id="reviewGuidelinesWrapper">
+      {include file="controllers/extrasOnDemand.tpl" 
+               id="reviewGuidelinesExras" 
+               widgetWrapper="#reviewGuidelinesWrapper" 
+               moreDetailsText="plugins.generic.dataverse.settings.default.reviewGuidelines.extras" 
+               moreDetailsLabel="plugins.generic.dataverse.settings.default.reviewGuidelines.extras.label" 
+               extraContent=$reviewGuidelinesContent}
+    </div>
+    
+    <h4>{translate key="manager.setup.copyeditInstructions"}</h4>
+    <p>Edit <a href="{url op='setup' path='4' anchor='copyeditInstructionsSection'}" target="_blank">{translate key="manager.setup.copyeditInstructions"}</a> to include instructions for datasets.</p>
+    <div id="copyeditWrapper">
+      {include file="controllers/extrasOnDemand.tpl" 
+               id="copyeditInstructionsExtras" 
+               widgetWrapper="#copyeditInstructionsWrapper" 
+               moreDetailsText="plugins.generic.dataverse.settings.default.copyeditInstructions.extras" 
+               moreDetailsLabel="plugins.generic.dataverse.settings.default.copyeditInstructions.extras.label" 
+               extraContent=$copyeditInstructionsContent}
+    </div>
+    
     <div class="separator"></div>
     
     {** Configure terms of use *}    
