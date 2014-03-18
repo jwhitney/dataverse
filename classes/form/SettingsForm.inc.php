@@ -137,12 +137,14 @@ class SettingsForm extends Form {
    */
   function execute() { 
     $plugin =& $this->_plugin;
-    $formFields = $this->_getFormFields();
 
-    foreach ($formFields as $field => $type) {
-      $plugin->updateSetting($this->_journalId, $field, $this->getData($field), $type);
-    }
-    
+    $plugin->updateSetting($this->_journalId, 'dataAvailability', $this->getData('dataAvailability'), 'string');    
+    $plugin->updateSetting($this->_journalId, 'fetchTermsOfUse',  $this->getData('fetchTermsOfUse'),  'bool');    
+    $plugin->updateSetting($this->_journalId, 'termsOfUse',       $this->getData('termsOfUse'),       'string');    
+    $plugin->updateSetting($this->_journalId, 'citationFormat',   $this->getData('citationFormat'),   'string');    
+    $plugin->updateSetting($this->_journalId, 'pubIdPlugin',      $this->getData('pubIdPlugin'),      'string');    
+    $plugin->updateSetting($this->_journalId, 'requireData',      $this->getData('requireData'),      'bool');    
+    $plugin->updateSetting($this->_journalId, 'studyRelease',     $this->getData('studyRelease'),     'int');    
     // Store DV TOU as a backup if not accessible via API. Update when fetched from API.
     if ($this->getData('dvTermsOfUse')) {
       $plugin->updateSetting($this->_journalId, 'dvTermsOfUse', $this->getData('dvTermsOfUse'), 'string');
@@ -173,27 +175,5 @@ class SettingsForm extends Form {
     $this->setData('dvTermsOfUse', $dvTermsOfUse);
     return true;
   }
-  
-  /**
-   * Get terms of use of Dataverese configured for this journal
-   * @return string
-   */
 
-  
-	/**
-   * Return the field names of this form.
-   * @return array
-   */
-  function _getFormFields() {
-    $formFields = array(
-        'dataAvailability' => 'string',
-        'fetchTermsOfUse' => 'bool',
-        'termsOfUse' => 'string',
-        'citationFormat' => 'string',
-        'pubIdPlugin' => 'string',
-        'requireData' => 'bool',
-        'studyRelease' => 'int'
-    );
-    return $formFields;
-  }  
 }
