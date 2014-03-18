@@ -40,7 +40,8 @@
     </ul>
     
 `   <h4>{translate key="about.authorGuidelines"}</h4>
-    <p>Edit <a href="{url op='setup' path='3' anchor='authorGuidelinesInfo'}" target="_blank">{translate key="about.authorGuidelines"}</a> to include data submission and citation guidelines.</p>
+    {url|assign:"authorGuidelinesUrl" page="manager" op="setup" path="3" anchor='authorGuidelinesInfo'}
+    <p>{translate key="plugins.generic.dataverse.settings.authorGuidelinesDescription" authorGuidelinesUrl="$authorGuidelinesUrl"}</p>
     <div id="authorGuidelinesWrapper">
       {include file="controllers/extrasOnDemand.tpl"
 			  id="authorGuidelinesExtras"
@@ -51,8 +52,8 @@
     </div>
     
     <h4>{translate key="about.submissionPreparationChecklist"}</h4>
-    <p>Edit <a href="{url op='setup' path='3' anchor='submissionPreparationChecklist'}" target="_blank">{translate key="about.submissionPreparationChecklist"}</a> 
-       to help authors comply with data submission and citation guidelines.</p>
+    {url|assign:"checklistUrl" page="manager" op='setup' path='3' anchor='submissionPreparationChecklist'}
+    <p>{translate key="plugins.generic.dataverse.settings.checklistDescription" checklistUrl="$checklistUrl"}</p>
     <div id="checklistWrapper">
       {include file="controllers/extrasOnDemand.tpl"
 			  id="checklistExtras"
@@ -63,7 +64,8 @@
     </div>
     
     <h4>{translate key="manager.setup.reviewPolicy"}</h4>
-    <p>Edit <a href="{url op='setup' path='2' anchor='peerReviewDescription'}" target="_blank">{translate key="manager.setup.reviewPolicy"}</a> to address datasets.</p>
+    {url|assign:"reviewPolicyUrl" page="manager" op='setup' path='2' anchor='peerReviewDescription'}
+    <p>{translate key="plugins.generic.dataverse.settings.reviewPolicyDescription" reviewPolicyUrl="$reviewPolicyUrl"}</p>
     <div id="reviewPolicyWrapper">
       {include file="controllers/extrasOnDemand.tpl" 
                id="reviewPolicyExtras" 
@@ -74,7 +76,8 @@
     </div>
     
     <h4>{translate key="manager.setup.reviewGuidelines"}</h4>
-    <p>Edit <a href="{url op='setup' path='2' anchor='reviewGuidelinesInfo'}" target="_blank">{translate key="manager.setup.reviewGuidelines"}</a> to include instructions for reviewing datasets.</p>
+    {url|assign:"reviewGuidelinesUrl" page="manager" op='setup' path='2' anchor='reviewGuidelinesInfo'} 
+    <p>{translate key="plugins.generic.dataverse.settings.reviewGuidelinesUrl" reviewGuidelinesUrl="$reviewGuidelinesUrl"}</p>
     <div id="reviewGuidelinesWrapper">
       {include file="controllers/extrasOnDemand.tpl" 
                id="reviewGuidelinesExras" 
@@ -85,7 +88,8 @@
     </div>
     
     <h4>{translate key="manager.setup.copyeditInstructions"}</h4>
-    <p>Edit <a href="{url op='setup' path='4' anchor='copyeditInstructionsSection'}" target="_blank">{translate key="manager.setup.copyeditInstructions"}</a> to include instructions for datasets.</p>
+    {url|assign:"copyeditInstructionsUrl" page="manager" op='setup' path='4' anchor='copyeditInstructionsSection'}
+    <p>{translate key="plugins.generic.dataverse.settings.copyeditInstructionsUrl" copyeditInstructionsUrl="$copyeditInstructionsUrl"}</p>
     <div id="copyeditWrapper">
       {include file="controllers/extrasOnDemand.tpl" 
                id="copyeditInstructionsExtras" 

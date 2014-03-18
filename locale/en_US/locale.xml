@@ -33,7 +33,7 @@
  <message key="plugins.generic.dataverse.settings.dataverseDescription">Select Dataverse to store this journal's data files.</message>
  <message key="plugins.generic.dataverse.settings.dataverseRequired">Please select a Dataverse.</message>
  
- <!-- Set up Dataverse: Settings -->    
+ <!-- Plugin configuration: Settings -->    
  <message key="plugins.generic.dataverse.settings">Settings</message>
  <message key="plugins.generic.dataverse.settings.dataPolicies">Data Policies</message>
  <message key="plugins.generic.dataverse.settings.dataPoliciesDescription">Configure data policies.</message>
@@ -41,11 +41,11 @@
  <message key="plugins.generic.dataverse.settings.dataAvailabilityPolicyDescription">General data availability policy for the journal. This will appear in About the Journal.</message>
  <message key="plugins.generic.dataverse.settings.dataAvailabilityRequired">Please provide a data availability policy.</message>        
  <message key="plugins.generic.dataverse.settings.sectionPoliciesDescription">Add data policies for specific journal sections.</message>
- 
- <message key="plugins.generic.dataverse.settings.submissionAndCitationGuidelines">Data Submission and Citation Guidelines</message>
- <message key="plugins.generic.dataverse.settings.submissionAndCitationGuidelinesDescription">Add data submission and citation guidelines for authors.</message>
- <message key="plugins.generic.dataverse.settings.dataReviewGuidelines">Data Review Guidelines</message>    
- <message key="plugins.generic.dataverse.settings.dataReviewGuidelinesDescription">Add data review guidelines for editors and copyeditors.</message>        
+ <message key="plugins.generic.dataverse.settings.authorGuidelinesDescription"><![CDATA[Edit <a href="{$authorGuidelinesUrl}" target="_blank">Author Guidelines</a> to include data submission and citation guidelines.]]></message>
+ <message key="plugins.generic.dataverse.settings.checklistDescription"><![CDATA[Edit <a href="{$checklistUrl}" target="_blank">Submission Preparation Checklist</a> to help authors comply with data submission and citation guidelines.]]></message>
+ <message key="plugins.generic.dataverse.settings.reviewPolicyDescription"><![CDATA[Edit <a href="{$reviewPolicyUrl}" target="_blank">Review Policy</a> to address datasets.]]></message>
+ <message key="plugins.generic.dataverse.settings.reviewGuidelinesUrl"><![CDATA[Edit <a href="{$reviewGuidelinesUrl}" target="_blank">Review Guidelines</a> to include instructions for reviewing datasets.]]></message>
+ <message key="plugins.generic.dataverse.settings.copyeditInstructionsUrl"><![CDATA[Edit <a href="{$copyeditInstructionsUrl}" target="_blank">Copyedit Instructions</a> to include instructions for datasets.]]></message>
  <message key="plugins.generic.dataverse.settings.termsOfUse">Terms of Use</message>
  <message key="plugins.generic.dataverse.settings.termsOfUseRequired">Provide terms of use or choose to fetch terms of use from Dataverse.</message>    
  <message key="plugins.generic.dataverse.settings.termsOfUseDescription">Provide the terms of use to which users must agree before depositing data files.</message>
@@ -127,8 +127,6 @@
    </ul>
    ]]>
  </message> 
- 
- 
  
  <!-- Notifications -->    
  <message key="plugins.generic.dataverse.notification.studyCreated">Submission data has been deposited in Dataverse.</message>
