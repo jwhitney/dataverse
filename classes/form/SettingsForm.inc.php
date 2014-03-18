@@ -75,26 +75,26 @@ class SettingsForm extends Form {
            __('plugins.generic.dataverse.settings.default.dataAvailabilityPolicy', array('journal' => $journal->getLocalizedTitle()))
           );
 
-    $this->setData('fetchTermsOfUse', $journal->getId(), 'fetchTermsOfUse');
-    $this->setData('termsOfUse', $journal->getId(), 'termsOfUse');
-    $this->setData('requireData', $journal->getId(), 'requireData');
+    $this->setData('fetchTermsOfUse', $plugin->getSetting($journal->getId(), 'fetchTermsOfUse'));
+    $this->setData('termsOfUse',      $plugin->getSetting($journal->getId(), 'termsOfUse'));
+    $this->setData('requireData',     $plugin->getSetting($journal->getId(), 'requireData'));
     
     // Get citation formats
     $this->setData('citationFormats', $this->_citationFormats);
-    $citationFormat = $this->_plugin->getSetting($this->_journalId, 'citationFormat');
+    $citationFormat = $this->_plugin->getSetting($journal->getId(), 'citationFormat');
     if (isset($citationFormat) && array_key_exists($citationFormat, $this->_citationFormats)) {
       $this->setData('citationFormat', $citationFormat);
     }
     
     // Get pub id format plugins
     $this->setData('pubIdTypes', $this->_pubIdTypes);
-    $pubIdPlugin = $this->_plugin->getSetting($this->_journalId, 'pubIdPlugin');
-    if (isset($pubIdPlugin) && array_key_exists($pubIdPlugin, $pubIdTypes)) {
+    $pubIdPlugin = $this->_plugin->getSetting($journal->getId(), 'pubIdPlugin');
+    if (isset($pubIdPlugin) && array_key_exists($pubIdPlugin, $this->_pubIdTypes)) {
       $this->setData('pubIdPlugin', $pubIdPlugin);
     } 
 
     $this->setData('studyReleaseOptions', $this->_studyReleaseOptions);
-    $studyRelease = $this->_plugin->getSetting($this->_journalId, 'studyRelease');
+    $studyRelease = $this->_plugin->getSetting($journal->getId(), 'studyRelease');
     if (array_key_exists($studyRelease, $this->_studyReleaseOptions)) {
       $this->setData('studyRelease', $studyRelease);
     }
@@ -105,7 +105,17 @@ class SettingsForm extends Form {
    * Assign form data to user-submitted data.
    */
   function readInputData() {
-    $this->readUserVars(array_keys($this->_getFormFields()));
+    $this->readUserVars(
+        array(
+        'dataAvailability',
+        'fetchTermsOfUse',
+        'termsOfUse',
+        'citationFormat',
+        'pubIdPlugin',
+        'requireData',
+        'studyRelease',
+      )
+    );    
   }
   
 	/**
