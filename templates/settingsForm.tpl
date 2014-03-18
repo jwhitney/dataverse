@@ -29,7 +29,7 @@
 
     <h4>{translate key="plugins.generic.dataverse.settings.dataAvailabilityPolicy"}</h4>
     <p>{translate key="plugins.generic.dataverse.settings.dataAvailabilityPolicyDescription"}</p>
-    <textarea name="dataAvailability" id="dataAvailability" rows="5" cols="40" class="textArea richContent">{$dataAvailability|escape}</textarea>
+    <textarea name="dataAvailability" id="dataAvailability" rows="12" cols="80" class="textArea richContent">{$dataAvailability|escape}</textarea>
     
     <h4>{translate key="about.sectionPolicies"}</h4>
     <p>{translate key="plugins.generic.dataverse.settings.sectionPoliciesDescription"}</p>
@@ -39,20 +39,52 @@
       {/foreach}
     </ul>
     
-    <h4>{translate key="plugins.generic.dataverse.settings.submissionAndCitationGuidelines"}</h4>
-    <p>{translate key="plugins.generic.dataverse.settings.submissionAndCitationGuidelinesDescription"}</p>
-    <ul class="plain">
-      <li>&#187; <a href="{url op='setup' path='3' anchor='authorGuidelinesInfo'}" target="_blank">{translate key="about.authorGuidelines"}</a></li>
-      <li>&#187; <a href="{url op='setup' path='3' anchor='submissionPreparationChecklist'}" target="_blank">{translate key="about.submissionPreparationChecklist"}</a></li>
-    </ul>
+`   <h4>{translate key="about.authorGuidelines"}</h4>
+    {url|assign:"authorGuidelinesUrl" page="manager" op="setup" path="3" anchor='authorGuidelinesInfo'}
+    <p>{translate key="plugins.generic.dataverse.settings.authorGuidelinesDescription" authorGuidelinesUrl="$authorGuidelinesUrl"}</p>
+    {include file="controllers/extrasOnDemand.tpl"
+      id="authorGuidelinesExtras"
+      moreDetailsText="plugins.generic.dataverse.settings.default.authorGuidelines.extras.more"
+      lessDetailsText="plugins.generic.dataverse.settings.default.authorGuidelines.extras.less"
+      extraContent=$authorGuidelinesContent}      
+
     
-    <h4>{translate key="plugins.generic.dataverse.settings.dataReviewGuidelines"}</h4>
-    <p>{translate key="plugins.generic.dataverse.settings.dataReviewGuidelinesDescription"}</p>
-    <ul class="plain">
-      <li>&#187; <a href="{url op='setup' path='2' anchor='peerReviewDescription'}" target="_blank">{translate key="manager.setup.reviewPolicy"}</a></li>
-      <li>&#187; <a href="{url op='setup' path='2' anchor='reviewGuidelinesInfo'}" target="_blank">{translate key="manager.setup.reviewGuidelines"}</a></li>
-      <li>&#187; <a href="{url op='setup' path='4' anchor='copyeditInstructionsSection'}" target="_blank">{translate key="manager.setup.copyeditInstructions"}</a></li>
-    </ul>
+    <h4>{translate key="about.submissionPreparationChecklist"}</h4>
+    {url|assign:"checklistUrl" page="manager" op='setup' path='3' anchor='submissionPreparationChecklist'}
+    <p>{translate key="plugins.generic.dataverse.settings.checklistDescription" checklistUrl="$checklistUrl"}</p>
+    {include file="controllers/extrasOnDemand.tpl"
+      id="checklistExtras"
+      moreDetailsText="plugins.generic.dataverse.settings.default.checklist.extras.more"
+      lessDetailsText="plugins.generic.dataverse.settings.default.checklist.extras.less"
+      extraContent=$checklistContent}
+    
+    <h4>{translate key="manager.setup.reviewPolicy"}</h4>
+    {url|assign:"reviewPolicyUrl" page="manager" op='setup' path='2' anchor='peerReviewDescription'}
+    <p>{translate key="plugins.generic.dataverse.settings.reviewPolicyDescription" reviewPolicyUrl="$reviewPolicyUrl"}</p>
+    {include file="controllers/extrasOnDemand.tpl" 
+             id="reviewPolicyExtras" 
+             moreDetailsText="plugins.generic.dataverse.settings.default.reviewPolicy.extras.more" 
+             lessDetailsText="plugins.generic.dataverse.settings.default.reviewPolicy.extras.less" 
+             extraContent=$reviewPolicyContent}
+    
+    <h4>{translate key="manager.setup.reviewGuidelines"}</h4>
+    {url|assign:"reviewGuidelinesUrl" page="manager" op='setup' path='2' anchor='reviewGuidelinesInfo'} 
+    <p>{translate key="plugins.generic.dataverse.settings.reviewGuidelinesUrl" reviewGuidelinesUrl="$reviewGuidelinesUrl"}</p>
+    {include file="controllers/extrasOnDemand.tpl" 
+             id="reviewGuidelinesExras" 
+             moreDetailsText="plugins.generic.dataverse.settings.default.reviewGuidelines.extras.more" 
+             lessDetailsText="plugins.generic.dataverse.settings.default.reviewGuidelines.extras.less" 
+             extraContent=$reviewGuidelinesContent}
+    
+    <h4>{translate key="manager.setup.copyeditInstructions"}</h4>
+    {url|assign:"copyeditInstructionsUrl" page="manager" op='setup' path='4' anchor='copyeditInstructionsSection'}
+    <p>{translate key="plugins.generic.dataverse.settings.copyeditInstructionsUrl" copyeditInstructionsUrl="$copyeditInstructionsUrl"}</p>
+    {include file="controllers/extrasOnDemand.tpl" 
+             id="copyeditInstructionsExtras" 
+             moreDetailsText="plugins.generic.dataverse.settings.default.copyeditInstructions.extras.more" 
+             lessDetailsText="plugins.generic.dataverse.settings.default.copyeditInstructions.extras.less" 
+             extraContent=$copyeditInstructionsContent}
+    
     <div class="separator"></div>
     
     {** Configure terms of use *}    

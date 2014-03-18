@@ -66,11 +66,18 @@ class SettingsForm extends Form {
    */
   function initData() {
     $plugin =& $this->_plugin;
+    $journal =& Request::getJournal();
 
-    // Initialize from plugin settings
-    foreach (array_keys($this->_getFormFields()) as $field) {
-      $this->setData($field, $plugin->getSetting($this->_journalId, $field));
-    }
+    // Populate form with plugin settings or default values
+    $this->setData('dataAvailability', 
+            $plugin->getSetting($journal->getId(), 'dataAvailability') ? 
+            $plugin->getSetting($journal->getId(), 'dataAvailability') : 
+           __('plugins.generic.dataverse.settings.default.dataAvailabilityPolicy', array('journal' => $journal->getLocalizedTitle()))
+          );
+
+    $this->setData('fetchTermsOfUse', $journal->getId(), 'fetchTermsOfUse');
+    $this->setData('termsOfUse', $journal->getId(), 'termsOfUse');
+    $this->setData('requireData', $journal->getId(), 'requireData');
     
     // Get citation formats
     $this->setData('citationFormats', $this->_citationFormats);
@@ -85,7 +92,6 @@ class SettingsForm extends Form {
     if (isset($pubIdPlugin) && array_key_exists($pubIdPlugin, $pubIdTypes)) {
       $this->setData('pubIdPlugin', $pubIdPlugin);
     } 
-    
 
     $this->setData('studyReleaseOptions', $this->_studyReleaseOptions);
     $studyRelease = $this->_plugin->getSetting($this->_journalId, 'studyRelease');
@@ -99,13 +105,24 @@ class SettingsForm extends Form {
    * Assign form data to user-submitted data.
    */
   function readInputData() {
-    $this->readUserVars(array_keys($this->_getFormFields()));
+    $this->readUserVars(
+        array(
+        'dataAvailability',
+        'fetchTermsOfUse',
+        'termsOfUse',
+        'citationFormat',
+        'pubIdPlugin',
+        'requireData',
+        'studyRelease',
+      )
+    );
   }
   
 	/**
 	 * @see Form::fetch()
 	 */
 	function fetch(&$request, $template = null, $display = false) {
+    $journal =& Request::getJournal();
 		$sectionDao =& DAORegistry::getDAO('SectionDAO');
 		$sections =& $sectionDao->getJournalSections($this->_journalId);
     
@@ -115,6 +132,13 @@ class SettingsForm extends Form {
     $templateMgr->assign('pubIdTypes', $this->_pubIdTypes); 
     $templateMgr->assign('studyReleaseOptions', $this->_studyReleaseOptions);
     
+    /** @fixme use language from OJS field instructions */
+    $templateMgr->assign('authorGuidelinesContent',     __('plugins.generic.dataverse.settings.default.authorGuidelines', array('journal' => $journal->getLocalizedTitle())));
+    $templateMgr->assign('checklistContent',            __('plugins.generic.dataverse.settings.default.checklist', array('journal' => $journal->getLocalizedTitle())));    
+    $templateMgr->assign('reviewPolicyContent',         __('plugins.generic.dataverse.settings.default.reviewPolicy'));
+    $templateMgr->assign('reviewGuidelinesContent',     __('plugins.generic.dataverse.settings.default.reviewGuidelines'));    
+    $templateMgr->assign('copyeditInstructionsContent', __('plugins.generic.dataverse.settings.default.copyeditInstructions'));
+    
 		parent::fetch($request, $template, $display);
 	}  
 
@@ -123,12 +147,14 @@ class SettingsForm extends Form {
    */
   function execute() { 
     $plugin =& $this->_plugin;
-    $formFields = $this->_getFormFields();
 
-    foreach ($formFields as $field => $type) {
-      $plugin->updateSetting($this->_journalId, $field, $this->getData($field), $type);
-    }
-    
+    $plugin->updateSetting($this->_journalId, 'dataAvailability', $this->getData('dataAvailability'), 'string');    
+    $plugin->updateSetting($this->_journalId, 'fetchTermsOfUse',  $this->getData('fetchTermsOfUse'),  'bool');    
+    $plugin->updateSetting($this->_journalId, 'termsOfUse',       $this->getData('termsOfUse'),       'string');    
+    $plugin->updateSetting($this->_journalId, 'citationFormat',   $this->getData('citationFormat'),   'string');    
+    $plugin->updateSetting($this->_journalId, 'pubIdPlugin',      $this->getData('pubIdPlugin'),      'string');    
+    $plugin->updateSetting($this->_journalId, 'requireData',      $this->getData('requireData'),      'bool');    
+    $plugin->updateSetting($this->_journalId, 'studyRelease',     $this->getData('studyRelease'),     'int');    
     // Store DV TOU as a backup if not accessible via API. Update when fetched from API.
     if ($this->getData('dvTermsOfUse')) {
       $plugin->updateSetting($this->_journalId, 'dvTermsOfUse', $this->getData('dvTermsOfUse'), 'string');
@@ -159,28 +185,5 @@ class SettingsForm extends Form {
     $this->setData('dvTermsOfUse', $dvTermsOfUse);
     return true;
   }
-  
-  /**
-   * Get terms of use of Dataverese configured for this journal
-   * @return string
-   */
-
-  
-	/**
-   * Return the field names of this form.
-   * @return array
-   */
-  function _getFormFields() {
-    $formFields = array(
-        'dataAvailability' => 'string',
-        'fetchTermsOfUse' => 'bool',
-        'termsOfUse' => 'string',
-        'citationFormat' => 'string',
-        'pubIdPlugin' => 'string',
-        'requireData' => 'bool',
-        'studyRelease' => 'int'
-    );
-    return $formFields;
-  }  
 
 }
