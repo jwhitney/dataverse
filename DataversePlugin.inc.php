@@ -361,11 +361,13 @@ class DataversePlugin extends GenericPlugin {
    * @return boolean
    */
   function getTinyMCEEnabledFields($hookName, $args) {
-    $fields =& $args[1];
-    $fields = array(
-        'dataAvailability',
-        'termsOfUse',
+    if ($_SERVER["REQUEST_URI"] == "/manager/plugin/generic/dataverseplugin/settings") {
+      $fields =& $args[1];
+      $fields = array(
+          'dataAvailability',
+          'termsOfUse',
         );
+    }
     return false;
   }
 
