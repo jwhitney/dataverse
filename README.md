@@ -11,6 +11,8 @@ for an overview of data publication workflows supported by the plugin in OJS.
 
 ## Installing the plugin
 
+Instructions for OJS 2.4 & later assume the plugin is installed using the web installer. **If the plugin is uploaded manually** to the OJS plugins directory, an additional step is required to install database tables used by the plugin. See details in the setup instructions for OJS 2.3.8.
+
 ### OJS 2.4.3
 
 Download [dataverse-1.1.1.0.tar.gz](https://github.com/jwhitney/dataverse/releases). Use the web plugin installer 
