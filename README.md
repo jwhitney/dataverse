@@ -15,7 +15,7 @@ Instructions for OJS 2.4 & later assume the plugin is installed using the web in
 
 ### OJS 2.4.4
 
-The Dataverse plugin is included in OJS 2.4.4. 
+The Dataverse plugin is included in [OJS 2.4.4](https://pkp.sfu.ca/ojs/ojs_download/). 
 
 ### OJS 2.4.3
 
