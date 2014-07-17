@@ -396,20 +396,27 @@ class DataversePlugin extends GenericPlugin {
     return $output;
 	}
   
-  /**
-   * Hook into TinyMCE for the text areas on the settings form.
-   * @param String $hookName
-   * @param array $args
-   * @return boolean
-   */
-  function getTinyMCEEnabledFields($hookName, $args) {
-    $fields =& $args[1];
-    $fields = array(
-        'dataAvailability',
-        'termsOfUse',
-        );
-    return false;
-  }
+	/**
+	 * Hook callback: register plugin settings fields with TinyMCE
+	 * @see TinyMCEPlugin::getEnableFields()
+	 */
+	function getTinyMCEEnabledFields($hookName, $args) {
+		$fields =& $args[1];
+
+		$application =& Application::getApplication();
+		$request =& $application->getRequest();
+		$router =& $request->getRouter();
+
+		// TinyMCEPlugin::getEnableFields hook is only invoked on page requests.
+		$page = $router->getRequestedPage($request);
+		$op = $router->getRequestedOp($request);
+		$requestArgs = $router->getRequestedArgs($request);
+
+		if ($page == 'manager' && $op == 'plugin' && in_array('dataverseplugin', $requestArgs)) {
+			$fields = array('dataAvailability', 'termsOfUse');
+		}
+		return false;
+	}
 
   /**
    * Add link to data availability policy
